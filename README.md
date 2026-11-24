@@ -145,7 +145,8 @@ cargo test --release
 139 end-to-end tests spawn the built `dwg-mcp` binary and drive it with the
 official Rust MCP client (`rmcp`) over stdio; a small local HTTP server stands
 in for remote files. Drawings are synthetic, written at test time; none is
-committed. Nine unit tests cover the pure rules. Each test carries a
+committed. One test covers the library accessor used by the Apify Actor, and
+nine unit tests cover the pure rules. Each test carries a
 requirement id; the register is [docs/requirements.md](docs/requirements.md).
 
 The tool definitions are tested as data (titles, descriptions that name the
