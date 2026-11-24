@@ -1,0 +1,7 @@
+/target
+/.git
+/.github
+/.wingbox
+/docs
+/tests
+*.md

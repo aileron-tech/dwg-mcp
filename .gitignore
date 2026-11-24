@@ -1,0 +1,9 @@
+# Rust build artifacts
+/target
+
+# Wingbox code graph
+/.wingbox
+
+# OS / editor
+.DS_Store
+*.swp

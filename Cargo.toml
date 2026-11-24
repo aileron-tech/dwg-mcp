@@ -1,0 +1,39 @@
+[package]
+name = "dwg-mcp"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+description = "MCP server for DWG ingestion: parse AutoCAD drawings into page images, readable tiles, a text layer and a metadata index"
+license = "MPL-2.0"
+repository = "https://github.com/aileron-tech/dwg-mcp"
+
+[lib]
+name = "dwg_mcp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dwg-mcp"
+path = "src/main.rs"
+
+[dependencies]
+# The renderer. Pinned to a commit: the two crates are released together.
+dwg2png = { git = "https://github.com/aileron-tech/dwg2png", rev = "cc34bbf3f2203718058bc99659c22578f6159433" }
+ab_glyph = "0.2"
+base64 = "0.22"
+rmcp = { version = "3.11", features = ["server", "macros", "transport-io", "schemars"] }
+schemars = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+ureq = "3"
+
+[dev-dependencies]
+# Writes the synthetic DWG fixtures; the same pinned version the renderer reads with.
+acadrust = { version = "=0.4.0", features = ["serde"] }
+rmcp = { version = "3.11", features = ["client", "transport-child-process"] }
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+strip = true

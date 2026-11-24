@@ -1,0 +1,310 @@
+//! Filesystem adapter for the cache: jobs, parse results and downloads.
+//!
+//! Layout under the cache root:
+//!   jobs/<job_id>.json            one record per parse call
+//!   results/<key>/meta.json       when the result was produced, summary, index
+//!   results/<key>/out/...         img/, labels/, tiles/ written by the renderer
+//!   downloads/<url-hash>/meta.json + file.dwg
+//!
+//! Every I/O failure becomes `ToolError::Internal`; nothing is swallowed.
+
+use std::fs;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+use crate::contract::{Index, JobStatus, Source, Summary};
+use crate::domain::{hex, is_expired, result_key_sha, ToolError};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct JobRecord {
+    pub job_id: String,
+    pub status: JobStatus,
+    pub source: Source,
+    pub file_name: String,
+    pub sha256: String,
+    /// The result this job reads; absent for a failed job.
+    pub result_key: Option<String>,
+    pub cached: bool,
+    pub cost_units: f64,
+    pub created_unix: u64,
+    /// Creation time in nanoseconds, to order jobs created within one second.
+    pub created_ns: u64,
+    /// When the result was produced: the start of its seven days.
+    pub result_created_unix: u64,
+    pub parse_ms: u64,
+    pub render_ms: u64,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ResultMeta {
+    pub created_unix: u64,
+    pub parse_ms: u64,
+    pub render_ms: u64,
+    pub summary: Summary,
+    pub index: Index,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DownloadMeta {
+    pub url: String,
+    pub file_name: String,
+    pub sha256: String,
+    pub bytes: u64,
+    pub fetched_unix: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct Store {
+    root: PathBuf,
+}
+
+fn io_err(what: &str, path: &Path, e: std::io::Error) -> ToolError {
+    ToolError::Internal(format!("{what} {}: {e}", path.display()))
+}
+
+fn read_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, ToolError> {
+    let text = match fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(io_err("read", path, e)),
+    };
+    serde_json::from_str(&text)
+        .map(Some)
+        .map_err(|e| ToolError::Internal(format!("decode {}: {e}", path.display())))
+}
+
+fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), ToolError> {
+    let text = serde_json::to_string(value)
+        .map_err(|e| ToolError::Internal(format!("encode {}: {e}", path.display())))?;
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, text).map_err(|e| io_err("write", &tmp, e))?;
+    fs::rename(&tmp, path).map_err(|e| io_err("rename", path, e))
+}
+
+fn remove_dir(path: &Path) -> Result<bool, ToolError> {
+    match fs::remove_dir_all(path) {
+        Ok(()) => Ok(true),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(io_err("remove", path, e)),
+    }
+}
+
+fn list_names(dir: &Path) -> Result<Vec<String>, ToolError> {
+    let rd = match fs::read_dir(dir) {
+        Ok(rd) => rd,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(io_err("list", dir, e)),
+    };
+    let mut names = Vec::new();
+    for entry in rd {
+        let entry = entry.map_err(|e| io_err("list", dir, e))?;
+        if let Some(name) = entry.file_name().to_str() {
+            names.push(name.to_string());
+        }
+    }
+    names.sort();
+    Ok(names)
+}
+
+/// SHA-256 of a file, as lowercase hex.
+pub fn sha256_file(path: &Path) -> Result<String, ToolError> {
+    let mut file = fs::File::open(path).map_err(|e| io_err("open", path, e))?;
+    let mut hasher = Sha256::new();
+    let mut buf = vec![0u8; 1 << 16];
+    loop {
+        let n = file.read(&mut buf).map_err(|e| io_err("read", path, e))?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    Ok(hex(&hasher.finalize()))
+}
+
+pub fn sha256_bytes(bytes: &[u8]) -> String {
+    hex(&Sha256::digest(bytes))
+}
+
+impl Store {
+    pub fn open(root: PathBuf) -> Result<Store, ToolError> {
+        for sub in ["jobs", "results", "downloads"] {
+            let dir = root.join(sub);
+            fs::create_dir_all(&dir).map_err(|e| io_err("create", &dir, e))?;
+        }
+        Ok(Store { root })
+    }
+
+    // ------------------------------------------------------------- jobs --
+
+    fn job_path(&self, job_id: &str) -> PathBuf {
+        self.root.join("jobs").join(format!("{job_id}.json"))
+    }
+
+    pub fn put_job(&self, job: &JobRecord) -> Result<(), ToolError> {
+        write_json(&self.job_path(&job.job_id), job)
+    }
+
+    pub fn get_job(&self, job_id: &str) -> Result<Option<JobRecord>, ToolError> {
+        // A job id is generated by this server: letters, digits and underscore only.
+        if job_id.is_empty() || !job_id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+            return Ok(None);
+        }
+        read_json(&self.job_path(job_id))
+    }
+
+    pub fn remove_job(&self, job_id: &str) -> Result<(), ToolError> {
+        let path = self.job_path(job_id);
+        match fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(io_err("remove", &path, e)),
+        }
+    }
+
+    /// All jobs, newest first.
+    pub fn list_jobs(&self) -> Result<Vec<JobRecord>, ToolError> {
+        let mut jobs = Vec::new();
+        for name in list_names(&self.root.join("jobs"))? {
+            if let Some(id) = name.strip_suffix(".json") {
+                if let Some(job) = self.get_job(id)? {
+                    jobs.push(job);
+                }
+            }
+        }
+        jobs.sort_by(|a, b| b.created_ns.cmp(&a.created_ns).then(b.job_id.cmp(&a.job_id)));
+        Ok(jobs)
+    }
+
+    // ---------------------------------------------------------- results --
+
+    pub fn result_dir(&self, key: &str) -> PathBuf {
+        self.root.join("results").join(key)
+    }
+
+    pub fn result_out_dir(&self, key: &str) -> PathBuf {
+        self.result_dir(key).join("out")
+    }
+
+    /// A fresh, empty directory to render a result into before it is published.
+    pub fn staging_dir(&self, key: &str, job_id: &str) -> Result<PathBuf, ToolError> {
+        let dir = self.root.join("results").join(format!(".staging-{key}-{job_id}"));
+        remove_dir(&dir)?;
+        fs::create_dir_all(dir.join("out")).map_err(|e| io_err("create", &dir, e))?;
+        Ok(dir)
+    }
+
+    pub fn discard_staging(&self, staging: &Path) -> Result<(), ToolError> {
+        remove_dir(staging).map(|_| ())
+    }
+
+    /// Publish a staged result under its key, replacing any older entry.
+    pub fn publish_result(
+        &self,
+        key: &str,
+        staging: &Path,
+        meta: &ResultMeta,
+    ) -> Result<(), ToolError> {
+        write_json(&staging.join("meta.json"), meta)?;
+        let dir = self.result_dir(key);
+        remove_dir(&dir)?;
+        fs::rename(staging, &dir).map_err(|e| io_err("publish", &dir, e))
+    }
+
+    pub fn get_result(&self, key: &str) -> Result<Option<ResultMeta>, ToolError> {
+        read_json(&self.result_dir(key).join("meta.json"))
+    }
+
+    pub fn remove_result(&self, key: &str) -> Result<bool, ToolError> {
+        remove_dir(&self.result_dir(key))
+    }
+
+    /// Keys of the cached results, without staging directories.
+    pub fn list_result_keys(&self) -> Result<Vec<String>, ToolError> {
+        Ok(list_names(&self.root.join("results"))?
+            .into_iter()
+            .filter(|n| !n.starts_with('.'))
+            .collect())
+    }
+
+    /// Remove every result of one drawing content (all sizes and tile settings) and the
+    /// jobs that read them. Returns (results removed, jobs removed).
+    pub fn remove_results_of_content(&self, sha256: &str) -> Result<(u32, u32), ToolError> {
+        let mut results = 0;
+        for key in self.list_result_keys()? {
+            if result_key_sha(&key) == sha256 && self.remove_result(&key)? {
+                results += 1;
+            }
+        }
+        let mut jobs = 0;
+        for job in self.list_jobs()? {
+            if job.sha256 == sha256 {
+                self.remove_job(&job.job_id)?;
+                jobs += 1;
+            }
+        }
+        Ok((results, jobs))
+    }
+
+    // -------------------------------------------------------- downloads --
+
+    fn download_dir(&self, url: &str) -> PathBuf {
+        self.root.join("downloads").join(sha256_bytes(url.as_bytes()))
+    }
+
+    pub fn download_file(&self, url: &str) -> PathBuf {
+        self.download_dir(url).join("file.dwg")
+    }
+
+    pub fn get_download(&self, url: &str) -> Result<Option<DownloadMeta>, ToolError> {
+        let meta: Option<DownloadMeta> = read_json(&self.download_dir(url).join("meta.json"))?;
+        Ok(meta.filter(|_| self.download_file(url).is_file()))
+    }
+
+    pub fn put_download(&self, meta: &DownloadMeta, bytes: &[u8]) -> Result<(), ToolError> {
+        let dir = self.download_dir(&meta.url);
+        remove_dir(&dir)?;
+        fs::create_dir_all(&dir).map_err(|e| io_err("create", &dir, e))?;
+        let file = dir.join("file.dwg");
+        fs::write(&file, bytes).map_err(|e| io_err("write", &file, e))?;
+        write_json(&dir.join("meta.json"), meta)
+    }
+
+    pub fn remove_download(&self, url: &str) -> Result<bool, ToolError> {
+        remove_dir(&self.download_dir(url))
+    }
+
+    // ------------------------------------------------------------ expiry --
+
+    /// Drop everything older than seven days: downloads, results, and the jobs whose
+    /// result is gone.
+    pub fn purge_expired(&self, now_unix: u64) -> Result<(), ToolError> {
+        let downloads = self.root.join("downloads");
+        for name in list_names(&downloads)? {
+            let dir = downloads.join(&name);
+            let meta: Option<DownloadMeta> = read_json(&dir.join("meta.json"))?;
+            if meta.is_none_or(|m| is_expired(m.fetched_unix, now_unix)) {
+                remove_dir(&dir)?;
+            }
+        }
+        for key in self.list_result_keys()? {
+            let meta = self.get_result(&key)?;
+            if meta.is_none_or(|m| is_expired(m.created_unix, now_unix)) {
+                self.remove_result(&key)?;
+            }
+        }
+        for job in self.list_jobs()? {
+            let gone = match &job.result_key {
+                Some(key) => self.get_result(key)?.is_none(),
+                None => is_expired(job.created_unix, now_unix),
+            };
+            if gone {
+                self.remove_job(&job.job_id)?;
+            }
+        }
+        Ok(())
+    }
+}
