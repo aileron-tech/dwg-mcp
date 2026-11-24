@@ -8,7 +8,97 @@ a metadata index. It runs locally over stdio, offline except for `parse_url`.
 The rendering is done by [dwg2png](https://github.com/aileron-tech/dwg2png);
 this repository is the server around it.
 
-## Tools
+## Use via Apify
+
+The hosted [dwg-apify Actor](https://apify.com/aileron-tech/dwg-apify) processes batches of
+DWG, DXF, and SVG URLs. Each URL produces one Apify dataset item with its
+status and links to successful outputs, including PNG previews and SVG pages.
+Sign in to Apify and pass the drawing URLs to the `aileron-tech--dwg-apify`
+tool. [Hosted pricing](https://apify.com/aileron-tech/dwg-apify/pricing)
+
+### Client setup
+
+Use this Actor-specific server URL. Select Streamable HTTP and OAuth in
+clients that ask for a transport and authentication method, then sign in to Apify.
+
+```text
+https://mcp.apify.com/?tools=actors,docs,aileron-tech/dwg-apify
+```
+
+| Client | Setup |
+|--------|-------|
+| General | Add the URL as a remote MCP server and complete Apify sign-in. [Apify MCP setup](https://docs.apify.com/mcp) |
+| ChatGPT | Enable developer mode if required, create a custom MCP app, and enter the URL with OAuth. [ChatGPT guide](https://docs.apify.com/integrations/chatgpt) |
+| Claude | In **Customize > Connectors**, add a custom connector with the URL. [Claude guide](https://docs.apify.com/integrations/claude-ai) |
+| Claude Desktop | Add the URL under **Customize > Connectors** as a remote connector. [Claude Desktop guide](https://docs.apify.com/integrations/claude-desktop) |
+| Claude Code | Run the command below, then use `/mcp` to connect and sign in. [Claude Code guide](https://code.claude.com/docs/en/mcp) |
+| Codex | Run the command below or add the URL as a remote MCP server in the app. [Codex CLI guide](https://docs.apify.com/integrations/codex-cli) and [Codex app guide](https://docs.apify.com/integrations/codex-app) |
+| Cursor | Add a remote MCP server in Cursor settings and use the URL. [Cursor guide](https://docs.apify.com/integrations/cursor) |
+| OpenCode | Merge the example below into `opencode.json`. [OpenCode guide](https://docs.apify.com/integrations/opencode) |
+| VS Code | Merge the example below into `.vscode/mcp.json`, then start the server and sign in when prompted. [VS Code guide](https://docs.apify.com/integrations/vscode) |
+
+**Claude Code**
+
+```sh
+claude mcp add --transport http dwg-apify 'https://mcp.apify.com/?tools=actors,docs,aileron-tech/dwg-apify'
+```
+
+**Codex CLI**
+
+```sh
+codex mcp add dwg-apify --url 'https://mcp.apify.com/?tools=actors,docs,aileron-tech/dwg-apify'
+codex mcp login dwg-apify
+```
+
+**OpenCode**
+
+```json
+{
+  "mcp": {
+    "dwg-apify": {
+      "type": "remote",
+      "url": "https://mcp.apify.com/?tools=actors,docs,aileron-tech/dwg-apify"
+    }
+  }
+}
+```
+
+If OpenCode prompts for authentication, run `opencode mcp auth dwg-apify`.
+
+**VS Code**
+
+```json
+{
+  "servers": {
+    "dwg-apify": {
+      "type": "http",
+      "url": "https://mcp.apify.com/?tools=actors,docs,aileron-tech/dwg-apify"
+    }
+  }
+}
+```
+
+For more clients, use the Apify guide for
+[Antigravity](https://docs.apify.com/integrations/antigravity),
+[DeepSeek Harness](https://docs.apify.com/integrations/deepseek-harness),
+[GitHub Copilot](https://docs.apify.com/integrations/github-copilot),
+[Grok Bot](https://docs.apify.com/integrations/grok-bot),
+[Grok Build](https://docs.apify.com/integrations/grok-build),
+[Hermes Agent](https://docs.apify.com/integrations/hermes-agent),
+[Kimi Code CLI](https://docs.apify.com/integrations/kimi-code-cli),
+[Lovable](https://docs.apify.com/integrations/lovable),
+[Manus](https://docs.apify.com/integrations/manus),
+[OpenClaw](https://docs.apify.com/integrations/openclaw), or
+[Qoder and Qwen](https://docs.apify.com/integrations/alibaba).
+Use the Actor-specific URL in clients that accept a custom server URL.
+[Apify's integration directory](https://docs.apify.com/integrations/agents)
+lists current options.
+
+Try this prompt after connecting.
+
+> Use dwg-apify to parse https://download.autodesk.com/us/samplefiles/acad/blocks_and_tables_-_imperial.dwg and report the page count and the number of native text labels.
+
+## Local MCP tools
 
 | Tool | What it does |
 |------|--------------|
@@ -111,7 +201,7 @@ Inside the container a drawing is `/work/drawings/<name>.dwg`; pass that path to
 `parse_file`. The image paths returned by `get_result` are inside the container
 (`/cache/...`); images up to 5 MB are also returned as image content.
 
-### Connect a client
+### Connect a local client
 
 Claude Code:
 
