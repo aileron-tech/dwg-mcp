@@ -105,3 +105,8 @@ returned hits, tile images came back as PNG, and a second parse was a cache
 hit at 0.1.
 
 - Accept SVG through the local and URL parse tools. Cache vector exports with the existing raster artifacts and expose them through page_svg.
+
+## 2026-11-24 - Claude directory package
+
+- Package the hosted DWG, DXF and SVG parser as a Claude plugin in
+  `plugins/dwg-apify`. It connects to the public Apify Actor over HTTPS.

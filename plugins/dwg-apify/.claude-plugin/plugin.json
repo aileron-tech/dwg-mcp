@@ -1,0 +1,12 @@
+{
+  "name": "dwg-apify",
+  "version": "0.1.0",
+  "description": "Convert DWG, DXF and SVG drawings into previews, native text and metadata.",
+  "author": {
+    "name": "Aileron Technologies"
+  },
+  "homepage": "https://apify.com/aileron-tech/dwg-apify",
+  "repository": "https://github.com/aileron-tech/dwg-mcp",
+  "license": "MPL-2.0",
+  "keywords": ["cad", "dwg", "dxf", "svg"]
+}
