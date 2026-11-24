@@ -12,7 +12,7 @@ pub const CACHE_TTL_SECS: u64 = 7 * 24 * 60 * 60;
 pub const COST_FRESH_PARSE: f64 = 1.0;
 /// Cost of a parse answered from the result cache: ten times cheaper.
 pub const COST_CACHED_PARSE: f64 = 0.1;
-/// Largest DWG accepted, from disk or from a URL.
+/// Largest drawing accepted, from disk or from a URL.
 pub const MAX_FILE_BYTES: u64 = 100 * 1024 * 1024;
 /// Largest PNG returned inline as image content; larger ones return a path only.
 pub const MAX_INLINE_IMAGE_BYTES: u64 = 5 * 1024 * 1024;
@@ -31,7 +31,8 @@ pub const JOBS_LIMIT_MAX: u32 = 100;
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ParseFileInput {
-    /// Absolute path of a .dwg file on the machine that runs this server. At most 100 MB.
+    /// Absolute path of a .dwg or .dxf file on the machine that runs this server. At
+    /// most 100 MB.
     pub path: String,
     /// Long edge of each page image in pixels, 512 to 12000. Default 3000. A different
     /// size is a different cache entry.
@@ -46,8 +47,8 @@ pub struct ParseFileInput {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ParseUrlInput {
-    /// http or https URL of a .dwg file. The file name comes from Content-Disposition or
-    /// the URL path and must end in .dwg. At most 100 MB.
+    /// http or https URL of a .dwg or .dxf file. The file name comes from
+    /// Content-Disposition or the URL path and must end in .dwg or .dxf. At most 100 MB.
     pub url: String,
     /// Long edge of each page image in pixels, 512 to 12000. Default 3000. A different
     /// size is a different cache entry.
@@ -127,7 +128,7 @@ pub struct ListJobsInput {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ResetFileCacheInput {
-    /// Absolute path of the .dwg file whose cached results should be dropped. The file
+    /// Absolute path of the .dwg or .dxf file whose cached results should be dropped. The file
     /// is matched by content, so it must still exist.
     pub path: String,
 }
@@ -181,7 +182,7 @@ pub struct PageSummary {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Summary {
     pub file_name: String,
-    /// DWG version code, for example AC1032.
+    /// AutoCAD version code of the drawing, for example AC1032.
     pub version: String,
     pub page_count: u32,
     pub pages: Vec<PageSummary>,

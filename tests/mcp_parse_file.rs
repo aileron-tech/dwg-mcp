@@ -151,24 +151,29 @@ async fn directory_is_refused() {
     h.stop().await;
 }
 
-/* REQ-MCP-043: a file that is not named .dwg is unsupported */
+/* REQ-MCP-043: a file that is not named .dwg or .dxf is unsupported */
 #[tokio::test]
 async fn other_extension_is_unsupported() {
     let h = Harness::start().await;
-    let dxf = h.files_dir().join("plan.dxf");
-    std::fs::copy(h.plan(), &dxf).unwrap();
-    let reply = h.call("parse_file", json!({ "path": dxf })).await;
-    assert_eq!(reply.err_code(), "unsupported_file");
+    for name in ["plan.dwf", "plan.pdf", "plan"] {
+        let other = h.files_dir().join(name);
+        std::fs::copy(h.plan(), &other).unwrap();
+        let reply = h.call("parse_file", json!({ "path": other })).await;
+        assert_eq!(reply.err_code(), "unsupported_file", "{name}");
+    }
     h.stop().await;
 }
 
-/* REQ-MCP-044: a .dwg file without a DWG version code is unsupported */
+/* REQ-MCP-044: a .dwg or .dxf file whose content is not a drawing is unsupported */
 #[tokio::test]
 async fn non_dwg_content_is_unsupported() {
     let h = Harness::start().await;
     let fake = h.files_dir().join("fake.dwg");
     std::fs::write(&fake, b"%PDF-1.7 this is a renamed PDF").unwrap();
     assert_eq!(h.call("parse_file", json!({ "path": fake })).await.err_code(), "unsupported_file");
+    let text = h.files_dir().join("notes.dxf");
+    std::fs::write(&text, "these are meeting notes, not a drawing\n").unwrap();
+    assert_eq!(h.call("parse_file", json!({ "path": text })).await.err_code(), "unsupported_file");
     let empty = h.files_dir().join("empty.dwg");
     std::fs::write(&empty, b"").unwrap();
     assert_eq!(h.call("parse_file", json!({ "path": empty })).await.err_code(), "unsupported_file");

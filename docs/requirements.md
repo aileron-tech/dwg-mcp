@@ -13,6 +13,7 @@ block of the tool the requirement belongs to.
 | get_result | REQ-MCP-090 to 129 |
 | get_job, list_jobs, delete_job | REQ-MCP-130 to 149 |
 | parse_url and reset_url_cache | REQ-MCP-150 to 199 |
+| DXF input | REQ-MCP-200 to 219 |
 | Pure rules (unit tests) | REQ-MCP-U01 onwards |
 
 ## Server and tool definitions
@@ -61,8 +62,8 @@ block of the tool the requirement belongs to.
 | REQ-MCP-040 | a relative path is refused | `tests/mcp_parse_file.rs::relative_path_is_refused` |
 | REQ-MCP-041 | a path with no file is not_found | `tests/mcp_parse_file.rs::missing_file_is_not_found` |
 | REQ-MCP-042 | a directory is refused | `tests/mcp_parse_file.rs::directory_is_refused` |
-| REQ-MCP-043 | a file that is not named .dwg is unsupported | `tests/mcp_parse_file.rs::other_extension_is_unsupported` |
-| REQ-MCP-044 | a .dwg file without a DWG version code is unsupported | `tests/mcp_parse_file.rs::non_dwg_content_is_unsupported` |
+| REQ-MCP-043 | a file that is not named .dwg or .dxf is unsupported | `tests/mcp_parse_file.rs::other_extension_is_unsupported` |
+| REQ-MCP-044 | a .dwg or .dxf file whose content is not a drawing is unsupported | `tests/mcp_parse_file.rs::non_dwg_content_is_unsupported` |
 | REQ-MCP-045 | the .dwg extension is matched without regard to case | `tests/mcp_parse_file.rs::uppercase_extension_is_accepted` |
 | REQ-MCP-046 | the job records its source path and the SHA-256 of the file | `tests/mcp_parse_file.rs::job_records_source_and_content_hash` |
 | REQ-MCP-047 | a result expires exactly seven days after it was created | `tests/mcp_parse_file.rs::result_expires_seven_days_after_creation` |
@@ -168,8 +169,8 @@ block of the tool the requirement belongs to.
 | REQ-MCP-159 | an HTTP error status is download_failed and names the status | `tests/mcp_parse_url.rs::http_errors_are_download_failed` |
 | REQ-MCP-160 | a host that does not answer is download_failed | `tests/mcp_parse_url.rs::unreachable_host_is_download_failed` |
 | REQ-MCP-161 | a web page is refused as unsupported_file | `tests/mcp_parse_url.rs::web_page_is_unsupported` |
-| REQ-MCP-162 | a file that is not named .dwg is refused | `tests/mcp_parse_url.rs::other_file_type_is_unsupported` |
-| REQ-MCP-163 | a .dwg download without a DWG version code is refused and not cached | `tests/mcp_parse_url.rs::non_dwg_download_is_refused_and_not_cached` |
+| REQ-MCP-162 | a file that is not named .dwg or .dxf is refused | `tests/mcp_parse_url.rs::other_file_type_is_unsupported` |
+| REQ-MCP-163 | a download whose content is not a drawing is refused and not cached | `tests/mcp_parse_url.rs::non_dwg_download_is_refused_and_not_cached` |
 | REQ-MCP-164 | a download announced as larger than 100 MB is refused as too_large | `tests/mcp_parse_url.rs::oversized_download_is_too_large` |
 | REQ-MCP-165 | only http and https URLs with a host are accepted | `tests/mcp_parse_url.rs::url_scheme_is_checked` |
 | REQ-MCP-166 | parse_url checks size before it downloads anything | `tests/mcp_parse_url.rs::options_are_checked_before_the_download` |
@@ -185,6 +186,19 @@ block of the tool the requirement belongs to.
 | REQ-MCP-176 | reset_file_cache drops the result but keeps the download of the same drawing | `tests/mcp_parse_url.rs::reset_file_cache_keeps_the_download` |
 | REQ-MCP-177 | the downloads and their jobs survive a server restart | `tests/mcp_parse_url.rs::download_cache_survives_a_restart` |
 
+## DXF input
+
+| Id | Requirement | Test |
+|----|-------------|------|
+| REQ-MCP-200 | parse_file parses a DXF into pages, labels and layers | `tests/mcp_dxf.rs::parse_file_reads_dxf` |
+| REQ-MCP-201 | a DXF gives the same label texts and layers as the DWG of the same drawing | `tests/mcp_dxf.rs::dxf_and_dwg_give_the_same_labels` |
+| REQ-MCP-202 | a DXF is cached like a DWG: the second parse costs a tenth | `tests/mcp_dxf.rs::dxf_is_cached` |
+| REQ-MCP-203 | a parsed DXF is read with get_result like any drawing | `tests/mcp_dxf.rs::dxf_result_is_readable` |
+| REQ-MCP-204 | parse_url downloads and parses a DXF | `tests/mcp_dxf.rs::parse_url_reads_dxf` |
+| REQ-MCP-205 | a DXF that breaks off is a failed parse, not an empty drawing | `tests/mcp_dxf.rs::truncated_dxf_fails_to_parse` |
+| REQ-MCP-206 | the format follows the content: a DXF named .dwg parses | `tests/mcp_dxf.rs::misnamed_dxf_parses` |
+| REQ-MCP-207 | the tool definitions say that DXF is accepted | `tests/mcp_dxf.rs::definitions_mention_dxf` |
+
 ## Pure rules (unit tests)
 
 | Id | Requirement | Test |
@@ -195,6 +209,7 @@ block of the tool the requirement belongs to.
 | REQ-MCP-U04 | the file name of a download comes from the header, then the URL path | `src/domain.rs::download_name_prefers_content_disposition` |
 | REQ-MCP-U05 | only http and https URLs with a host are accepted | `src/domain.rs::url_scheme_and_host_are_checked` |
 | REQ-MCP-U06 | paging returns a cursor until the last page | `src/domain.rs::paginate_walks_all_items` |
-| REQ-MCP-U07 | the DWG signature is AC followed by four digits | `src/domain.rs::dwg_magic_is_recognized` |
+| REQ-MCP-U07 | DWG and DXF are recognised by content and accepted by extension | `src/domain.rs::drawings_are_recognized` |
 | REQ-MCP-U08 | a result key separates content, size and tiles | `src/domain.rs::result_key_depends_on_options` |
 | REQ-MCP-U09 | a failsafe-recovered empty document is reported as unreadable | `src/domain.rs::failsafe_empty_document_is_unreadable` |
+| REQ-MCP-U10 | a text DXF is complete only when it ends with EOF | `src/domain.rs::text_dxf_completeness` |

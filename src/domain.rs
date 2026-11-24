@@ -69,13 +69,18 @@ pub fn resolve_options(size: Option<u32>, tiles: Option<bool>) -> Result<ParseOp
     Ok(ParseOptions { size, tiles: tiles.unwrap_or(true) })
 }
 
-pub fn has_dwg_extension(name: &str) -> bool {
-    name.len() > 4 && name.to_ascii_lowercase().ends_with(".dwg")
+/// How many leading bytes of a file are enough to recognise its format.
+pub const FORMAT_HEAD_BYTES: usize = 256;
+
+/// True for a file name ending in .dwg or .dxf, in any letter case.
+pub fn has_drawing_extension(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    name.len() > 4 && (lower.ends_with(".dwg") || lower.ends_with(".dxf"))
 }
 
-/// A DWG starts with its version code, "AC" and four digits.
-pub fn has_dwg_magic(head: &[u8]) -> bool {
-    head.len() >= 6 && &head[..2] == b"AC" && head[2..6].iter().all(u8::is_ascii_digit)
+/// True when the first bytes of a file are those of a DWG or a DXF drawing.
+pub fn is_drawing_content(head: &[u8]) -> bool {
+    dwg2png::detect_format(head).is_some()
 }
 
 const FAILSAFE_MARKER: &str = "Failsafe: file header read failed";
@@ -87,10 +92,29 @@ pub fn unreadable_reason(notifications: &[String], entity_count: usize) -> Optio
     if entity_count > 0 {
         return None;
     }
-    notifications.iter().find(|n| n.contains(FAILSAFE_MARKER)).map(|n| {
+    if let Some(n) = notifications.iter().find(|n| n.contains(FAILSAFE_MARKER)) {
         let detail = n.rsplit("returning partial document:").next().unwrap_or(n).trim();
-        format!("the file is damaged or not a supported DWG version ({detail})")
+        return Some(format!("the file is damaged or not a supported DWG version ({detail})"));
+    }
+    // A DXF that breaks off reports the section it could not read.
+    notifications.iter().find(|n| n.starts_with("[Error]")).map(|n| {
+        let detail = n.trim_start_matches("[Error]").trim();
+        format!("the file is damaged ({detail})")
     })
+}
+
+/// True when the first bytes are those of a text (not binary) DXF.
+pub fn is_text_dxf(head: &[u8]) -> bool {
+    dwg2png::detect_format(head) == Some(dwg2png::CadFormat::Dxf)
+        && !head.starts_with(b"AutoCAD Binary DXF")
+}
+
+/// A text DXF ends with the group "0 / EOF". One that does not was cut short: the
+/// reader would return whatever sections it reached, possibly an empty drawing.
+pub fn text_dxf_is_complete(tail: &[u8]) -> bool {
+    let text = String::from_utf8_lossy(tail);
+    let end = text.trim_end_matches(|c: char| c.is_whitespace() || c == '\u{1a}' || c == '\0');
+    end.lines().next_back().map(str::trim) == Some("EOF")
 }
 
 /// A parsed http(s) URL: only the parts the server needs.
@@ -376,12 +400,15 @@ mod tests {
         assert!(decode_cursor(Some("abc")).is_err());
     }
 
-    /* REQ-MCP-U07: the DWG signature is AC followed by four digits */
+    /* REQ-MCP-U07: DWG and DXF are recognised by content and accepted by extension */
     #[test]
-    fn dwg_magic_is_recognized() {
-        assert!(has_dwg_magic(b"AC1032\0\0"));
-        assert!(!has_dwg_magic(b"<html>"));
-        assert!(!has_dwg_magic(b"AC10"));
+    fn drawings_are_recognized() {
+        assert!(is_drawing_content(b"AC1032\0\0"));
+        assert!(is_drawing_content(b"  0\nSECTION\n  2\nHEADER\n"));
+        assert!(!is_drawing_content(b"<html>"));
+        assert!(!is_drawing_content(b"AC10"));
+        assert!(has_drawing_extension("a.dwg") && has_drawing_extension("PLAN.DXF"));
+        assert!(!has_drawing_extension("a.dwf") && !has_drawing_extension(".dwg") && !has_drawing_extension("dxf"));
     }
 
     /* REQ-MCP-U09: a failsafe-recovered empty document is reported as unreadable */
@@ -395,6 +422,23 @@ mod tests {
         assert!(reason.contains("failed to fill whole buffer"));
         assert_eq!(unreadable_reason(&failed, 12), None);
         assert_eq!(unreadable_reason(&failed[..1], 0), None);
+        let dxf = vec!["[Error] Error reading ENTITIES section: Parse error: Unexpected EOF".to_string()];
+        assert!(unreadable_reason(&dxf, 0).unwrap().contains("ENTITIES"));
+        assert_eq!(unreadable_reason(&dxf, 3), None);
+        assert_eq!(unreadable_reason(&[], 0), None, "an empty drawing is not a damaged one");
+    }
+
+    /* REQ-MCP-U10: a text DXF is complete only when it ends with EOF */
+    #[test]
+    fn text_dxf_completeness() {
+        assert!(text_dxf_is_complete(b"  0\r\nENDSEC\r\n  0\r\nEOF\r\n"));
+        assert!(text_dxf_is_complete(b"0\nEOF"));
+        assert!(text_dxf_is_complete(b"0\nEOF\n\x1a"));
+        assert!(!text_dxf_is_complete(b"  0\r\nLINE\r\n  8\r\nWALLS\r\n"));
+        assert!(!text_dxf_is_complete(b""));
+        assert!(is_text_dxf(b"0\nSECTION\n"));
+        assert!(!is_text_dxf(b"AutoCAD Binary DXF\r\n\x1a\0"));
+        assert!(!is_text_dxf(b"AC1032"));
     }
 
     /* REQ-MCP-U08: a result key separates content, size and tiles */

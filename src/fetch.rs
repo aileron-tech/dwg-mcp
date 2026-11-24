@@ -1,11 +1,11 @@
-//! HTTP adapter: download a DWG from a URL with a size cap and a time limit.
+//! HTTP adapter: download a drawing from a URL with a size cap and a time limit.
 
 use std::time::Duration;
 
 use ureq::ResponseExt;
 
 use crate::contract::MAX_FILE_BYTES;
-use crate::domain::{download_file_name, has_dwg_extension, HttpUrl, ToolError};
+use crate::domain::{download_file_name, has_drawing_extension, HttpUrl, ToolError};
 
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -16,11 +16,11 @@ pub struct Download {
 }
 
 /// Fetch the file behind `url`. Redirects are followed; the file name comes from
-/// Content-Disposition, then the final URL path, and must end in .dwg.
+/// Content-Disposition, then the final URL path, and must end in .dwg or .dxf.
 pub fn download(url: &HttpUrl) -> Result<Download, ToolError> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(DOWNLOAD_TIMEOUT))
-        .user_agent(concat!("dwg2png/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("dwg-mcp/", env!("CARGO_PKG_VERSION")))
         .build()
         .into();
 
@@ -37,7 +37,7 @@ pub fn download(url: &HttpUrl) -> Result<Download, ToolError> {
     let content_type = header("content-type").unwrap_or_default().to_ascii_lowercase();
     if content_type.starts_with("text/html") {
         return Err(ToolError::UnsupportedFile(format!(
-            "{} returned a web page (text/html), not a DWG file",
+            "{} returned a web page (text/html), not a drawing file",
             url.raw
         )));
     }
@@ -53,9 +53,9 @@ pub fn download(url: &HttpUrl) -> Result<Download, ToolError> {
     let final_url = crate::domain::parse_http_url(&response.get_uri().to_string())
         .unwrap_or_else(|_| url.clone());
     let file_name = download_file_name(header("content-disposition").as_deref(), &final_url);
-    if !has_dwg_extension(&file_name) {
+    if !has_drawing_extension(&file_name) {
         return Err(ToolError::UnsupportedFile(format!(
-            "{} is named {file_name:?}; only .dwg files are supported",
+            "{} is named {file_name:?}; only .dwg and .dxf files are supported",
             url.raw
         )));
     }

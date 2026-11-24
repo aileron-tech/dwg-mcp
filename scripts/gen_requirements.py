@@ -12,6 +12,7 @@ BLOCKS = [
     ("get_result", 90, 129),
     ("get_job, list_jobs, delete_job", 130, 149),
     ("parse_url and reset_url_cache", 150, 199),
+    ("DXF input", 200, 219),
 ]
 TAG = re.compile(r"\s*/\* (REQ-MCP-(U?)(\d+)): (.*) \*/")
 FN = re.compile(r"\s*(?:async )?fn (\w+)")

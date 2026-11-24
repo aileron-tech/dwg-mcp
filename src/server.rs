@@ -20,7 +20,7 @@ use crate::contract::{
 use crate::domain::ToolError;
 use crate::service::{Now, Service};
 
-const INSTRUCTIONS: &str = "dwg-mcp turns AutoCAD DWG drawings into data an AI application can \
+const INSTRUCTIONS: &str = "dwg-mcp turns AutoCAD DWG and DXF drawings into data an AI application can \
 use: page images, readable tiles, every text label with its pixel position, and a metadata \
 index. Start with parse_file (local path) or parse_url (http/https link); both return a job_id \
 and a summary. Then call get_result with that job_id: mode summary first, then labels, index, \
@@ -92,8 +92,8 @@ impl DwgServer {
 impl DwgServer {
     #[tool(
         name = "parse_file",
-        title = "Parse a local DWG file",
-        description = "Parse a DWG drawing from a local path into page images, readable tiles, a text layer (every label as exact text with its pixel position, no OCR) and a metadata index. Returns a job and a summary; read the details with get_result using job.job_id. Use parse_url instead when the drawing is behind an http or https link. The result is cached for 7 days by file content, size and tiles: parsing the same content again returns job.cached=true at cost_units 0.1 instead of 1 and does not render again. To force a new parse of a file, call reset_file_cache first. A drawing that cannot be parsed returns the error parse_failed, records a failed job and costs 0.",
+        title = "Parse a local DWG or DXF file",
+        description = "Parse a DWG or DXF drawing from a local path into page images, readable tiles, a text layer (every label as exact text with its pixel position, no OCR) and a metadata index. Returns a job and a summary; read the details with get_result using job.job_id. Use parse_url instead when the drawing is behind an http or https link. The result is cached for 7 days by file content, size and tiles: parsing the same content again returns job.cached=true at cost_units 0.1 instead of 1 and does not render again. To force a new parse of a file, call reset_file_cache first. A drawing that cannot be parsed returns the error parse_failed, records a failed job and costs 0.",
         annotations(read_only_hint = false, destructive_hint = false, idempotent_hint = false, open_world_hint = false),
         output_schema = schema_for_output::<ParseOutput>()
     )]
@@ -106,8 +106,8 @@ impl DwgServer {
 
     #[tool(
         name = "parse_url",
-        title = "Parse a DWG file from a URL",
-        description = "Download a DWG drawing from an http or https URL and parse it; the output is the same as parse_file. Use parse_file instead when the drawing is already on this machine. The download is cached for 7 days by URL, so a repeated call does not fetch the file again (download_cached=true); the parse result is cached for 7 days by file content, so a repeat returns job.cached=true at cost_units 0.1 instead of 1. If the file behind the URL has changed, call reset_url_cache first. Fails with unsupported_file when the link is a web page or not a .dwg, too_large above 100 MB, download_failed on an HTTP error or after 30 seconds.",
+        title = "Parse a DWG or DXF file from a URL",
+        description = "Download a DWG or DXF drawing from an http or https URL and parse it; the output is the same as parse_file. Use parse_file instead when the drawing is already on this machine. The download is cached for 7 days by URL, so a repeated call does not fetch the file again (download_cached=true); the parse result is cached for 7 days by file content, so a repeat returns job.cached=true at cost_units 0.1 instead of 1. If the file behind the URL has changed, call reset_url_cache first. Fails with unsupported_file when the link is a web page or not a .dwg or .dxf, too_large above 100 MB, download_failed on an HTTP error or after 30 seconds.",
         annotations(read_only_hint = false, destructive_hint = false, idempotent_hint = false, open_world_hint = true),
         output_schema = schema_for_output::<ParseOutput>()
     )]
@@ -187,7 +187,7 @@ impl DwgServer {
     #[tool(
         name = "reset_file_cache",
         title = "Reset the cache of a local file",
-        description = "Drop every cached parse result of one local DWG file, for all sizes and tile settings, together with the jobs that read them, so the next parse_file of it is a full parse at cost_units 1. Use it when a cached result should not be reused, for example after upgrading the server. The file is matched by its current content, so an edited file needs no reset: it already parses fresh. Cannot be undone; calling it again removes nothing. Use reset_url_cache instead for a drawing that was parsed from a URL, and delete_job to remove a single job.",
+        description = "Drop every cached parse result of one local DWG or DXF file, for all sizes and tile settings, together with the jobs that read them, so the next parse_file of it is a full parse at cost_units 1. Use it when a cached result should not be reused, for example after upgrading the server. The file is matched by its current content, so an edited file needs no reset: it already parses fresh. Cannot be undone; calling it again removes nothing. Use reset_url_cache instead for a drawing that was parsed from a URL, and delete_job to remove a single job.",
         annotations(read_only_hint = false, destructive_hint = true, idempotent_hint = true, open_world_hint = false),
         output_schema = schema_for_output::<ResetCacheOutput>()
     )]
@@ -218,7 +218,7 @@ impl ServerHandler for DwgServer {
     fn get_info(&self) -> ServerConfig {
         let mut info = Implementation::default();
         info.name = "dwg-mcp".into();
-        info.title = Some("dwg-mcp: DWG ingestion for AI applications".into());
+        info.title = Some("dwg-mcp: DWG and DXF ingestion for AI applications".into());
         info.version = env!("CARGO_PKG_VERSION").into();
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(info)

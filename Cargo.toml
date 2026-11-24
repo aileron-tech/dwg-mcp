@@ -1,9 +1,9 @@
 [package]
 name = "dwg-mcp"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.88"
-description = "MCP server for DWG ingestion: parse AutoCAD drawings into page images, readable tiles, a text layer and a metadata index"
+description = "MCP server for DWG and DXF ingestion: parse AutoCAD drawings into page images, readable tiles, a text layer and a metadata index"
 license = "MPL-2.0"
 repository = "https://github.com/aileron-tech/dwg-mcp"
 
@@ -17,7 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 # The renderer. Pinned to a commit: the two crates are released together.
-dwg2png = { git = "https://github.com/aileron-tech/dwg2png", rev = "cc34bbf3f2203718058bc99659c22578f6159433" }
+dwg2png = { git = "https://github.com/aileron-tech/dwg2png", rev = "7ea8c53f1a75a1193c673dbfde9ae8a4ee313252" }
 ab_glyph = "0.2"
 base64 = "0.22"
 rmcp = { version = "3.11", features = ["server", "macros", "transport-io", "schemars"] }

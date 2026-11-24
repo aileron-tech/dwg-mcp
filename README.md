@@ -1,7 +1,7 @@
 # dwg-mcp
 
-**MCP server for DWG ingestion.** dwg-mcp gives an AI agent eight tools to turn
-an AutoCAD DWG drawing (R13-R2018) into data it can use: page images, readable
+**MCP server for DWG and DXF ingestion.** dwg-mcp gives an AI agent eight tools
+to turn an AutoCAD drawing (DWG R13-R2018, or DXF) into data it can use: page images, readable
 tiles, every text label with its pixel position (read from the DWG, no OCR) and
 a metadata index. It runs locally over stdio, offline except for `parse_url`.
 
@@ -12,8 +12,8 @@ this repository is the server around it.
 
 | Tool | What it does |
 |------|--------------|
-| `parse_file` | Parse a DWG from a local path. Returns a job and a summary. |
-| `parse_url` | Download a DWG from an http or https URL and parse it. |
+| `parse_file` | Parse a DWG or DXF from a local path. Returns a job and a summary. |
+| `parse_url` | Download a DWG or DXF from an http or https URL and parse it. |
 | `get_result` | Read one part of a parsed drawing: `summary`, `labels`, `index`, `page_image` or `tile_image`. |
 | `get_job` | Status, cost and expiry of one job. |
 | `list_jobs` | Jobs in the cache, newest first, with the total cost. |
@@ -42,8 +42,10 @@ A failed call returns `isError: true` with a text of the form `code: message`.
 Codes: `invalid_argument`, `not_found`, `unsupported_file`, `too_large`,
 `download_failed`, `parse_failed`, `internal`.
 
-Only `.dwg` files are accepted (up to 100 MB). DXF and DWF are refused with
-`unsupported_file`.
+`.dwg` and `.dxf` files are accepted (up to 100 MB); the format is read from
+the content of the file. DWF and other files are refused with
+`unsupported_file`. A damaged DWG and a DXF that was cut short fail with
+`parse_failed` instead of returning an empty drawing.
 
 ## Run it
 
@@ -164,11 +166,11 @@ and passed down.
 cargo test --release
 ```
 
-139 end-to-end tests spawn the built `dwg-mcp` binary and drive it with the
+147 end-to-end tests spawn the built `dwg-mcp` binary and drive it with the
 official Rust MCP client (`rmcp`) over stdio; a small local HTTP server stands
 in for remote files. Drawings are synthetic, written at test time; none is
 committed. One test covers the library accessor used by the Apify Actor, and
-nine unit tests cover the pure rules. Each test carries a
+ten unit tests cover the pure rules. Each test carries a
 requirement id; the register is [docs/requirements.md](docs/requirements.md).
 
 The tool definitions are tested as data (titles, descriptions that name the

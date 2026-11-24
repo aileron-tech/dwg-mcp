@@ -187,12 +187,12 @@ async fn web_page_is_unsupported() {
     h.stop().await;
 }
 
-/* REQ-MCP-162: a file that is not named .dwg is refused */
+/* REQ-MCP-162: a file that is not named .dwg or .dxf is refused */
 #[tokio::test]
 async fn other_file_type_is_unsupported() {
     let h = Harness::start().await;
     let server = FileServer::start();
-    for name in ["/plan.dxf", "/plan.pdf", "/plan"] {
+    for name in ["/plan.dwf", "/plan.pdf", "/plan"] {
         let url = server.route(name, Route::dwg(plan_bytes(&h)));
         let reply = h.call("parse_url", json!({ "url": url })).await;
         assert_eq!(reply.err_code(), "unsupported_file", "{name}");
@@ -200,7 +200,7 @@ async fn other_file_type_is_unsupported() {
     h.stop().await;
 }
 
-/* REQ-MCP-163: a .dwg download without a DWG version code is refused and not cached */
+/* REQ-MCP-163: a download whose content is not a drawing is refused and not cached */
 #[tokio::test]
 async fn non_dwg_download_is_refused_and_not_cached() {
     let h = Harness::start().await;

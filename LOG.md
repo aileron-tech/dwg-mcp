@@ -82,3 +82,24 @@ runner's glibc (2.43). Installed with the one-liner in `debian:bookworm-slim`,
 **Not verified:** running `dwg-mcp.exe` on Windows and the PATH update in
 `install.ps1` (no Windows machine); the macOS arm64 and Linux arm64 binaries
 (built by CI, not run).
+
+## 2026-11-24 - 0.2.0: DXF input, cleaner label text
+
+**Changes:**
+- `.dxf` files are accepted by `parse_file` and `parse_url`. The format is
+  read from the content (`dwg2png::detect_format`), so a DXF named `.dwg`
+  parses and a text file named `.dxf` is `unsupported_file`.
+- A text DXF that does not end with `EOF` is `parse_failed` before parsing:
+  cut in its header or tables it would otherwise come back as an empty
+  drawing. A drawing with no entities and a reader error is `parse_failed` too.
+- Renderer updated to `dwg2png` 7ea8c53: labels no longer carry MTEXT
+  formatting codes or `%%` control codes.
+- Tool titles, descriptions and parameter texts name DXF.
+
+**Verification:** PASS. `cargo test --release`: 147 end-to-end tests through
+the `rmcp` client (8 new in `tests/mcp_dxf.rs`, REQ-MCP-200 to 207), 1 library
+test, 10 unit tests; clippy clean. Six real drawings (four Autodesk DWG
+samples, two DXF from open source repositories) were driven through a real
+MCP session with the built binary: each parsed in 0.3 to 0.8 s, label search
+returned hits, tile images came back as PNG, and a second parse was a cache
+hit at 0.1.

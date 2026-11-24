@@ -1,6 +1,6 @@
 # dwg-mcp: instructions for agents
 
-dwg-mcp is an MCP server that turns AutoCAD DWG drawings into data you can
+dwg-mcp is an MCP server that turns AutoCAD DWG and DXF drawings into data you can
 read: page images, readable tiles, every text label with its pixel position,
 and a metadata index. This file has two parts: how to use the server's tools,
 and how to work on this repository.
@@ -85,10 +85,10 @@ A failed call has `isError: true` and a text `code: message`.
 |------|---------|------------|
 | `invalid_argument` | A value is out of range or missing; the message names it | Fix the argument and call again |
 | `not_found` | No such file, or the job expired or was deleted | Check the path, or parse again |
-| `unsupported_file` | Not a `.dwg`, not a DWG inside, or the URL is a web page | Tell the user; DXF and DWF are not supported |
+| `unsupported_file` | Not a `.dwg` or `.dxf`, not a drawing inside, or the URL is a web page | Tell the user; DWF and other formats are not supported |
 | `too_large` | Over 100 MB | Tell the user |
 | `download_failed` | HTTP error, unreachable host, or 30 s timeout | Check the URL; retry once |
-| `parse_failed` | The drawing is damaged or an unsupported DWG version | Tell the user; it was not billed |
+| `parse_failed` | The drawing is damaged, a DXF was cut short, or the DWG version is unsupported | Tell the user; it was not billed |
 
 ### Example
 

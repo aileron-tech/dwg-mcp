@@ -18,7 +18,8 @@ async fn server_reports_name_title_and_version() {
     let info = serde_json::to_value(h.client.peer_info()).unwrap();
     assert_eq!(info["serverInfo"]["name"], "dwg-mcp");
     assert_eq!(info["serverInfo"]["version"], env!("CARGO_PKG_VERSION"));
-    assert!(info["serverInfo"]["title"].as_str().unwrap().contains("DWG ingestion"));
+    let title = info["serverInfo"]["title"].as_str().unwrap();
+    assert!(title.contains("DWG") && title.contains("DXF") && title.contains("ingestion"), "{title}");
     h.stop().await;
 }
 

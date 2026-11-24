@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use acadrust::entities::{Circle, EntityType, Line, MText, Text, Viewport};
 use acadrust::tables::Layer;
 use acadrust::types::{Color, Vector3};
-use acadrust::{CadDocument, DwgWriter, DxfVersion};
+use acadrust::{CadDocument, DwgWriter, DxfVersion, DxfWriter};
 
 /// Labels of the `plan` fixture, by layer.
 pub const PLAN_WALL_LABELS: [&str; 3] = ["WALL A-101", "WALL A-102", "North facade"];
@@ -89,6 +89,12 @@ pub fn dense_document(n: usize) -> CadDocument {
         doc.add_entity(text_on("TAGS", &format!("TAG-{i:04}"), x, y, 10.0)).expect("tag");
     }
     doc
+}
+
+pub fn write_dxf(doc: &CadDocument, dir: &Path, name: &str) -> PathBuf {
+    let path = dir.join(name);
+    DxfWriter::new(doc).write_to_file(&path).expect("write dxf fixture");
+    path
 }
 
 pub fn write_dwg(doc: &CadDocument, dir: &Path, name: &str) -> PathBuf {

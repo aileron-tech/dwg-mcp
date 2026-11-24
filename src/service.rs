@@ -17,9 +17,10 @@ use crate::contract::{
     MAX_INLINE_IMAGE_BYTES, SIZE_MAX, TILE_PX,
 };
 use crate::domain::{
-    decode_cursor, expires_at, filter_labels, has_dwg_extension, has_dwg_magic, jobs_limit,
+    decode_cursor, expires_at, filter_labels, has_drawing_extension, is_drawing_content,
+    is_text_dxf, jobs_limit, text_dxf_is_complete,
     labels_limit, paginate, parse_cost, parse_http_url, resolve_options, result_key, rfc3339,
-    unreadable_reason, ParseOptions, ToolError,
+    unreadable_reason, ParseOptions, ToolError, FORMAT_HEAD_BYTES,
 };
 use crate::fetch;
 use crate::store::{sha256_bytes, sha256_file, DownloadMeta, JobRecord, ResultMeta, Store};
@@ -93,7 +94,7 @@ fn page_stem(page: u32) -> String {
     format!("f00-p{page:02}")
 }
 
-/// A local DWG that passed every check, with its content hash.
+/// A local drawing (DWG or DXF) that passed every check, with its content hash.
 struct LocalDwg {
     path: PathBuf,
     file_name: String,
@@ -118,9 +119,9 @@ fn check_local_path(raw: &str) -> Result<PathBuf, ToolError> {
 fn check_local_dwg(raw: &str) -> Result<LocalDwg, ToolError> {
     let path = check_local_path(raw)?;
     let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
-    if !has_dwg_extension(&file_name) {
+    if !has_drawing_extension(&file_name) {
         return Err(ToolError::UnsupportedFile(format!(
-            "{file_name:?} is not a .dwg file; only DWG drawings are supported"
+            "{file_name:?} is not a .dwg or .dxf file; only DWG and DXF drawings are supported"
         )));
     }
     let len = fs::metadata(&path)
@@ -131,17 +132,36 @@ fn check_local_dwg(raw: &str) -> Result<LocalDwg, ToolError> {
             "{file_name:?} is {len} bytes; the limit is {MAX_FILE_BYTES} bytes"
         )));
     }
-    let mut head = [0u8; 6];
+    let mut head = [0u8; FORMAT_HEAD_BYTES];
     let read = fs::File::open(&path)
         .and_then(|mut f| f.read(&mut head))
         .map_err(|e| ToolError::Internal(format!("read {}: {e}", path.display())))?;
-    if !has_dwg_magic(&head[..read]) {
+    if !is_drawing_content(&head[..read]) {
         return Err(ToolError::UnsupportedFile(format!(
-            "{file_name:?} does not start with a DWG version code; it is not a DWG drawing"
+            "{file_name:?} does not start like a DWG or a DXF; it is not a drawing this server reads"
         )));
     }
     let sha256 = sha256_file(&path)?;
     Ok(LocalDwg { path, file_name, sha256 })
+}
+
+/// Why a file cannot be a whole drawing, judged before parsing: a text DXF that does
+/// not end with EOF was cut short.
+fn incomplete_reason(path: &Path) -> Result<Option<String>, ToolError> {
+    use std::io::{Seek, SeekFrom};
+    let io = |e: std::io::Error| ToolError::Internal(format!("read {}: {e}", path.display()));
+    let mut file = fs::File::open(path).map_err(io)?;
+    let mut head = [0u8; FORMAT_HEAD_BYTES];
+    let read = file.read(&mut head).map_err(io)?;
+    if !is_text_dxf(&head[..read]) {
+        return Ok(None);
+    }
+    let len = file.metadata().map_err(io)?.len();
+    file.seek(SeekFrom::Start(len.saturating_sub(64))).map_err(io)?;
+    let mut tail = Vec::new();
+    file.read_to_end(&mut tail).map_err(io)?;
+    Ok((!text_dxf_is_complete(&tail))
+        .then(|| "the DXF is incomplete: it does not end with EOF, so it was cut short".to_string()))
 }
 
 fn summarize(report: &FileReport, file_name: &str, opts: ParseOptions) -> (Summary, Index) {
@@ -257,6 +277,9 @@ impl Service {
         opts: ParseOptions,
         now: Now,
     ) -> Result<Result<ResultMeta, String>, ToolError> {
+        if let Some(reason) = incomplete_reason(dwg)? {
+            return Ok(Err(reason));
+        }
         let staging = self.store.staging_dir(key, job_id)?;
         let out = staging.join("out");
         let (img, labels, tiles) = (out.join("img"), out.join("labels"), out.join("tiles"));
@@ -376,9 +399,10 @@ impl Service {
             Some(meta) => (meta, true),
             None => {
                 let got = fetch::download(&url)?;
-                if !has_dwg_magic(&got.bytes) {
+                let head = &got.bytes[..got.bytes.len().min(FORMAT_HEAD_BYTES)];
+                if !is_drawing_content(head) {
                     return Err(ToolError::UnsupportedFile(format!(
-                        "{} does not start with a DWG version code; it is not a DWG drawing",
+                        "{} does not start like a DWG or a DXF; it is not a drawing this server reads",
                         url.raw
                     )));
                 }
