@@ -56,3 +56,14 @@ Homebrew, and PowerShell on Windows.
   `DWG_MCP_INSTALL_DIR`. They follow the layout of the `ccbox` installer.
 - Homebrew formula in the `aileron-tech/homebrew-dwg-mcp` tap, pointing at the
   release archives.
+
+## 2026-11-24 - 0.1.1: static Linux binaries
+
+**Problem:** The Linux archives of v0.1.0 were linked against the build
+runner's glibc (2.43). Installed with the one-liner in `debian:bookworm-slim`,
+`ubuntu:22.04` and `ubuntu:24.04` containers, the binary failed to start:
+`version GLIBC_2.43 not found`.
+
+**Change:** The two Linux targets are now `x86_64-unknown-linux-musl` and
+`aarch64-unknown-linux-musl`: static binaries with no glibc dependency.
+`scripts/install.sh` downloads those. No change to the server itself.
