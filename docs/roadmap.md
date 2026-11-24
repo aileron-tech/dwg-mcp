@@ -14,16 +14,27 @@
 
 ## Billing with Stripe
 
-- [ ] Agree on the free allowance, paid plan prices, included drawing counts
-  and how to price same-account cache hits. Use CADLens as a reference for
-  simple plans and free result reads. [CADLens usage and quotas](https://cadlens.co/docs#usage)
+Match the published Apify Actor's rates in the direct hosted service.
+[Current Apify pricing](https://apify.com/aileron-tech/dwg-apify/pricing)
+
+| Billable event | USD per drawing | USD per 1,000 |
+| --- | ---: | ---: |
+| Fresh successful parse | $0.007 | $7.00 |
+| Eligible same-account cache hit | $0.003 | $3.00 |
+| Failed parse, job check, or result read | $0.00 | $0.00 |
+
+- [ ] Use CADLens as the reference for self-service signup, access keys and
+  visible account usage. Decide the free allowance and billable cache window
+  before launch. [CADLens usage and quotas](https://cadlens.co/docs#usage)
 - [ ] Add Stripe Checkout and the customer portal on Aileron's site for plan
   management. Enforce account entitlements and show consumed and remaining
   allowance. [Stripe Billing](https://docs.stripe.com/billing/subscriptions/usage-based)
 - [ ] Count completed parses with a durable usage record keyed to the drawing
   job. Keep failed parses, job checks and result reads free. Test checkout,
   cancellation, webhook retries, concurrent quota use and duplicate events
-  in Stripe test mode before enabling live charges.
+  in Stripe test mode before enabling live charges. Aggregate metered
+  usage per billing period and verify how fractional-cent prices round
+  on invoices. [Stripe per-unit pricing](https://docs.stripe.com/api/prices/create)
 - [ ] Let ChatGPT users sign in to an existing account and access its
   entitlements. Keep purchase and upgrade prompts out of the ChatGPT plugin.
   [OpenAI plugin guidelines](https://developers.openai.com/plugins/plugin-guidelines)
