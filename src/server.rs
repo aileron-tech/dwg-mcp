@@ -33,6 +33,7 @@ pub struct DwgServer {
     /// One tool call at a time: the cache directory is shared state.
     gate: Arc<Mutex<()>>,
     tool_router: ToolRouter<Self>,
+    instructions: &'static str,
 }
 
 fn now() -> Now {
@@ -57,7 +58,29 @@ impl DwgServer {
             service: Arc::new(service),
             gate: Arc::new(Mutex::new(())),
             tool_router: Self::tool_router(),
+            instructions: INSTRUCTIONS,
         }
+    }
+
+    pub(crate) fn for_http(service: Service) -> Self {
+        let mut server = Self::new(service);
+        server.instructions = "Parse DWG, DXF and SVG drawings from public HTTPS URLs. Start with parse_url, then use get_result to read the drawing or get_job to check its status. PNG previews and tiles can be returned inline. Paths in results refer to server storage.";
+        server.tool_router.map.retain(|name, route| match name.as_ref() {
+            "parse_url" => {
+                route.attr.description = Some("Download a DWG, DXF or SVG drawing from a public HTTPS URL and return a job and drawing summary. Use get_result to read pages, native text or metadata. Drawings and downloads are cached for seven days. The file limit is 100 MB.".into());
+                true
+            }
+            "get_result" => {
+                route.attr.description = Some("Read the summary, labels, metadata index or PNG preview for a drawing job. PNG previews and tiles are returned inline up to 5 MB. Artifact paths refer to server storage. Use get_job for job status and expiry.".into());
+                true
+            }
+            "get_job" => {
+                route.attr.description = Some("Read status, timing and expiry for a drawing job ID. Use get_result to read the drawing.".into());
+                true
+            }
+            _ => false,
+        });
+        server
     }
 
     /// Run one service call on the blocking pool, holding the gate.
@@ -222,7 +245,7 @@ impl ServerHandler for DwgServer {
         info.version = env!("CARGO_PKG_VERSION").into();
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(info)
-            .with_instructions(INSTRUCTIONS)
+            .with_instructions(self.instructions)
     }
 }
 

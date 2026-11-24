@@ -19,14 +19,16 @@ path = "src/main.rs"
 # The renderer. Pinned to a commit: the two crates are released together.
 dwg2png = { git = "https://github.com/aileron-tech/dwg2png", rev = "6d3785f7a7d7376f2640f4b502cab4a54ed27350" }
 ab_glyph = "0.2"
+axum = "0.8"
 base64 = "0.22"
-rmcp = { version = "3.11", features = ["server", "macros", "transport-io", "schemars"] }
+rmcp = { version = "3.11", features = ["server", "macros", "transport-io", "transport-streamable-http-server", "schemars"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-ureq = "3"
+subtle = "2.6"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net"] }
+ureq = "=3.5.2"
 
 [dev-dependencies]
 # Writes the synthetic DWG fixtures; the same pinned version the renderer reads with.

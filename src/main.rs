@@ -1,4 +1,4 @@
-//! dwg-mcp: MCP server for DWG, DXF and SVG ingestion, over stdio.
+//! dwg-mcp: MCP server for DWG, DXF and SVG ingestion, over stdio or HTTP.
 //!
 //! Usage:
 //!   dwg-mcp              serve MCP on stdin/stdout (also: `dwg2png --mcp`)
@@ -15,6 +15,7 @@ const HELP: &str = "dwg-mcp: MCP server for DWG, DXF and SVG ingestion (stdio)
 
 Usage:
   dwg-mcp              serve MCP on stdin/stdout
+  dwg-mcp --http       serve authenticated Streamable HTTP at /mcp
   dwg-mcp --version    print the version
   dwg-mcp --help       print this text
 
@@ -22,8 +23,11 @@ Environment:
   DWG_MCP_CACHE_DIR    cache folder for downloads and results, kept 7 days
                        (default: $XDG_CACHE_HOME/dwg-mcp or ~/.cache/dwg-mcp)
   DWG2PNG_FONT         TrueType font used to draw text
+  DWG_MCP_HTTP_BIND    HTTP bind address (default: 127.0.0.1:8080)
+  DWG_MCP_HTTP_HOSTS   Comma-separated hostnames for HTTP requests
+  DWG_MCP_HTTP_TOKEN   Required bearer token for HTTP (at least 32 characters)
 
-Tools: parse_file, parse_url, get_result, get_job, list_jobs, delete_job,
+Stdio tools: parse_file, parse_url, get_result, get_job, list_jobs, delete_job,
 reset_file_cache, reset_url_cache.";
 
 /// Fonts tried when DWG2PNG_FONT is not set: macOS, Debian/Ubuntu, Fedora, Windows.
@@ -59,8 +63,9 @@ fn cache_dir() -> PathBuf {
 }
 
 fn main() {
-    match std::env::args().nth(1).as_deref() {
-        None => {}
+    let http = match std::env::args().nth(1).as_deref() {
+        None => false,
+        Some("--http") => true,
         Some("--version") | Some("-V") => {
             println!("dwg-mcp {}", env!("CARGO_PKG_VERSION"));
             return;
@@ -73,8 +78,14 @@ fn main() {
             eprintln!("dwg-mcp: unknown argument {other:?}\n\n{HELP}");
             std::process::exit(2);
         }
-    }
-    let outcome = font_path().and_then(|font| dwg_mcp::server::run(&font, cache_dir()));
+    };
+    let outcome = font_path().and_then(|font| {
+        if http {
+            dwg_mcp::http::run(&font, cache_dir())
+        } else {
+            dwg_mcp::server::run(&font, cache_dir())
+        }
+    });
     if let Err(e) = outcome {
         eprintln!("dwg-mcp: {e}");
         std::process::exit(1);

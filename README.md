@@ -8,6 +8,26 @@ a metadata index. It runs locally over stdio, offline except for `parse_url`.
 The rendering is done by [dwg2png](https://github.com/aileron-tech/dwg2png);
 this repository is the server around it.
 
+See the [roadmap](docs/roadmap.md) for hosted deployment, billing and listings.
+
+## Self-hosted Streamable HTTP
+
+The deployment uses `https://cad.aileron-tech.com/mcp` as the primary URL
+and `https://cad.aileron-tech.fr/mcp` as a secondary URL. See the roadmap
+for rollout status. This mode is for a trusted operator with a bearer token.
+
+Set `DWG_MCP_HTTP_TOKEN` to a random secret of at least 32 characters and
+start `dwg-mcp --http`. The process binds to `127.0.0.1:8080` by default.
+To change the listener or accepted hostnames, set `DWG_MCP_HTTP_BIND` and
+`DWG_MCP_HTTP_HOSTS` (comma-separated). Place the listener behind HTTPS and
+give the HTTP instance its own `DWG_MCP_CACHE_DIR`.
+
+The remote tools are `parse_url`, `get_result`, and `get_job`. Download
+URLs and redirects must use HTTPS on port 443 and resolve to public
+addresses. PNG previews and tiles can be returned inline. Paths in tool
+results refer to the server's cache. This endpoint uses a shared cache for
+one trusted operator and currently requires bearer auth.
+
 ## Use via Apify
 
 The hosted [dwg-apify Actor](https://apify.com/aileron-tech/dwg-apify) processes batches of

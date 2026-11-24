@@ -202,6 +202,7 @@ block of the tool the requirement belongs to.
 | REQ-MCP-209 | parse_url reads and caches SVG drawings | `tests/mcp_svg.rs::parse_url_reads_svg` |
 | REQ-MCP-210 | an SVG root with truncated XML fails without charging | `tests/mcp_svg.rs::truncated_svg_is_parse_failed` |
 | REQ-MCP-211 | page_svg exposes a vector export and leaves page_image available for all inputs | `tests/mcp_svg.rs::vector_output_is_available_for_all_formats` |
+| REQ-MCP-212 | remote MCP requires authentication and does not expose local tools | `tests/mcp_http.rs::http_authenticates_and_exposes_only_remote_tools` |
 
 ## Pure rules (unit tests)
 

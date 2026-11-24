@@ -110,3 +110,10 @@ hit at 0.1.
 
 - Package the hosted DWG, DXF and SVG parser as a Claude plugin in
   `plugins/dwg-apify`. It connects to the public Apify Actor over HTTPS.
+
+## 2026-11-24 - Authenticated HTTP deployment
+
+- Add a Streamable HTTP entrypoint alongside stdio so the renderer can be
+  reached through Aileron's HTTPS hostnames. The HTTP tool surface accepts
+  remote HTTPS drawings and excludes local-file and cache management tools.
+- Require a bearer token and restrict downloads to public HTTPS destinations.

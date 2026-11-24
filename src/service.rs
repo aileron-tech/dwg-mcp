@@ -38,6 +38,7 @@ pub struct Service {
     store: Store,
     font: FontVec,
     counter: AtomicU64,
+    download: fn(&crate::domain::HttpUrl) -> Result<fetch::Download, ToolError>,
 }
 
 /// A page PNG to return as image content next to the structured result.
@@ -258,7 +259,18 @@ fn to_job(r: &JobRecord) -> Job {
 
 impl Service {
     pub fn new(cache_dir: PathBuf, font: FontVec) -> Result<Service, ToolError> {
-        Ok(Service { store: Store::open(cache_dir)?, font, counter: AtomicU64::new(0) })
+        Ok(Service {
+            store: Store::open(cache_dir)?,
+            font,
+            counter: AtomicU64::new(0),
+            download: fetch::download,
+        })
+    }
+
+    pub(crate) fn for_http(cache_dir: PathBuf, font: FontVec) -> Result<Service, ToolError> {
+        let mut service = Self::new(cache_dir, font)?;
+        service.download = fetch::download_public_https;
+        Ok(service)
     }
 
     fn new_job_id(&self, now: Now) -> String {
@@ -398,7 +410,7 @@ impl Service {
         let (meta, download_cached) = match self.store.get_download(&url.raw)? {
             Some(meta) => (meta, true),
             None => {
-                let got = fetch::download(&url)?;
+                let got = (self.download)(&url)?;
                 let head = &got.bytes[..got.bytes.len().min(FORMAT_HEAD_BYTES)];
                 if !is_drawing_content(head) {
                     return Err(ToolError::UnsupportedFile(format!(

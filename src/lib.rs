@@ -9,6 +9,7 @@
 pub mod contract;
 pub mod domain;
 pub mod fetch;
+pub mod http;
 pub mod server;
 pub mod service;
 pub mod store;
