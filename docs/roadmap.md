@@ -26,8 +26,9 @@ one eligible cache hit uses 3. [Current Apify pricing](https://apify.com/aileron
 | Failed parse, job check, or result read | 0 | $0.00 | $0.00 |
 
 - [ ] Let customers buy a usage pack, see their balance and payment history,
-  and create or revoke named API keys. Decide pack sizes, the free allowance,
-  the paid usage expiry policy and cache eligibility before launch.
+  and create or revoke named API keys. Starter includes five successful
+  parses. The bilingual site and account console use Ory Kratos. Decide
+  production pack sizes and the paid usage expiry policy before launch.
 - [ ] Evaluate Paddle as merchant of record. Confirm it accepts these
   account-bound drawing packs before enabling live sales. Grant units once
   per completed payment through a verified webhook. [Paddle one-time payments](https://developer.paddle.com/get-started/how-paddle-works/digital-products/) and [Paddle acceptable use policy](https://www.paddle.com/help/start/intro-to-paddle/what-am-i-not-allowed-to-sell-on-paddle)

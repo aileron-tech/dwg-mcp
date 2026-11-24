@@ -5,6 +5,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use ab_glyph::FontVec;
 use serde::Deserialize;
@@ -36,7 +37,7 @@ pub struct Now {
 
 pub struct Service {
     store: Store,
-    font: FontVec,
+    font: Arc<FontVec>,
     counter: AtomicU64,
     download: fn(&crate::domain::HttpUrl) -> Result<fetch::Download, ToolError>,
 }
@@ -259,6 +260,10 @@ fn to_job(r: &JobRecord) -> Job {
 
 impl Service {
     pub fn new(cache_dir: PathBuf, font: FontVec) -> Result<Service, ToolError> {
+        Self::open(cache_dir, Arc::new(font))
+    }
+
+    fn open(cache_dir: PathBuf, font: Arc<FontVec>) -> Result<Service, ToolError> {
         Ok(Service {
             store: Store::open(cache_dir)?,
             font,
@@ -267,8 +272,8 @@ impl Service {
         })
     }
 
-    pub(crate) fn for_http(cache_dir: PathBuf, font: FontVec) -> Result<Service, ToolError> {
-        let mut service = Self::new(cache_dir, font)?;
+    pub(crate) fn for_http(cache_dir: PathBuf, font: Arc<FontVec>) -> Result<Service, ToolError> {
+        let mut service = Self::open(cache_dir, font)?;
         service.download = fetch::download_public_https;
         Ok(service)
     }

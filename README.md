@@ -28,6 +28,14 @@ addresses. PNG previews and tiles can be returned inline. Paths in tool
 results refer to the server's cache. This endpoint uses a shared cache for
 one trusted operator and currently requires bearer auth.
 
+### Private gateway mode
+
+An authenticated billing gateway can enable `DWG_MCP_HTTP_TENANTS=1` and
+supply a gateway-derived `X-Dwg-Account` header with a 32-character
+lowercase hexadecimal account ID on every request. Each account has its own
+cache under `DWG_MCP_CACHE_DIR`. Keep the renderer on a private network and
+use a separate internal bearer token. Customer keys belong to the gateway.
+
 ## Use via Apify
 
 The hosted [dwg-apify Actor](https://apify.com/aileron-tech/dwg-apify) processes batches of

@@ -117,3 +117,13 @@ hit at 0.1.
   reached through Aileron's HTTPS hostnames. The HTTP tool surface accepts
   remote HTTPS drawings and excludes local-file and cache management tools.
 - Require a bearer token and restrict downloads to public HTTPS destinations.
+
+## 2026-11-24 - Isolate hosted drawing caches by account
+
+Enable an opt-in HTTP mode for the authenticated CAD web gateway. The gateway
+supplies a verified account ID, and each account uses a separate cache root.
+The HTTP router still offers the same three remote drawing tools.
+
+Verification: HTTP authentication, tool definitions, and URL parsing tests.
+The web gateway also exercises same-account caching and cross-account reads
+through Docker Compose.

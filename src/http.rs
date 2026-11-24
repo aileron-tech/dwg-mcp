@@ -1,4 +1,4 @@
-//! Authenticated Streamable HTTP entrypoint for a single trusted operator.
+//! Authenticated Streamable HTTP entrypoint for trusted operators and gateways.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -13,6 +13,8 @@ use rmcp::transport::streamable_http_server::{
 };
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
+use tokio::sync::Mutex;
+use tower::ServiceExt;
 
 use crate::{server::DwgServer, service::Service};
 
@@ -35,6 +37,56 @@ async fn authenticate(State(expected): State<[u8; 32]>, request: Request, next: 
         .into_response()
 }
 
+fn transport(
+    server: DwgServer,
+    config: StreamableHttpServerConfig,
+) -> StreamableHttpService<DwgServer, LocalSessionManager> {
+    StreamableHttpService::new(
+        move || Ok(server.clone()),
+        Arc::new(LocalSessionManager::default()),
+        config,
+    )
+}
+
+struct TenantGateway {
+    cache_dir: PathBuf,
+    font: Arc<ab_glyph::FontVec>,
+    config: StreamableHttpServerConfig,
+    gate: Mutex<()>,
+}
+
+async fn serve_tenant(State(gateway): State<Arc<TenantGateway>>, request: Request) -> Response {
+    let tenant = request
+        .headers()
+        .get("x-dwg-account")
+        .and_then(|value| value.to_str().ok());
+    let Some(tenant) = tenant.filter(|id| {
+        id.len() == 32
+            && id
+                .bytes()
+                .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    }) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Missing or invalid gateway account",
+        )
+            .into_response();
+    };
+    let cache = gateway.cache_dir.join(tenant);
+    let _gate = gateway.gate.lock().await;
+    let Ok(service) = Service::for_http(cache, gateway.font.clone()) else {
+        eprintln!("dwg-mcp: unable to open a tenant cache");
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+    match transport(DwgServer::for_http(service), gateway.config.clone())
+        .oneshot(request)
+        .await
+    {
+        Ok(response) => response.into_response(),
+        Err(never) => match never {},
+    }
+}
+
 pub fn run(font_path: &str, cache_dir: PathBuf) -> Result<(), String> {
     let token = std::env::var("DWG_MCP_HTTP_TOKEN").unwrap_or_default();
     if token.len() < 32 || !token.bytes().all(|byte| byte.is_ascii_graphic()) {
@@ -53,22 +105,27 @@ pub fn run(font_path: &str, cache_dir: PathBuf) -> Result<(), String> {
         return Err("DWG_MCP_HTTP_HOSTS must contain at least one hostname".into());
     }
 
-    let font = dwg2png::text::load_font(font_path)?;
-    let service = Service::for_http(cache_dir, font).map_err(|error| error.to_string())?;
-    let server = DwgServer::for_http(service);
+    let font = Arc::new(dwg2png::text::load_font(font_path)?);
     let config = StreamableHttpServerConfig::default()
         .with_allowed_hosts(hosts)
         .with_legacy_session_mode(false)
         .with_json_response(true)
         .with_max_request_body_bytes(64 * 1024);
-    let transport = StreamableHttpService::new(
-        move || Ok(server.clone()),
-        Arc::new(LocalSessionManager::default()),
-        config,
-    );
-    let app = Router::new()
-        .route_service("/mcp", transport)
-        .layer(middleware::from_fn_with_state(token_hash, authenticate));
+    let routes = if std::env::var("DWG_MCP_HTTP_TENANTS").as_deref() == Ok("1") {
+        let gateway = TenantGateway {
+            cache_dir,
+            font,
+            config,
+            gate: Mutex::new(()),
+        };
+        Router::new()
+            .route("/mcp", axum::routing::any(serve_tenant))
+            .with_state(Arc::new(gateway))
+    } else {
+        let service = Service::for_http(cache_dir, font).map_err(|error| error.to_string())?;
+        Router::new().route_service("/mcp", transport(DwgServer::for_http(service), config))
+    };
+    let app = routes.layer(middleware::from_fn_with_state(token_hash, authenticate));
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
