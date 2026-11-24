@@ -41,3 +41,18 @@ Added `AGENTS.md` (with `CLAUDE.md` as a symlink to it): how an agent uses the
 eight tools (default workflow, paging, tiles, cache and cost, what to do on
 each error code) and how to work on this repository. The limits it states were
 checked against the constants in `src/contract.rs` and `src/fetch.rs`.
+
+## 2026-11-24 - Binary releases and installers
+
+**Goal:** Install `dwg-mcp` without a Rust toolchain: a shell one-liner,
+Homebrew, and PowerShell on Windows.
+
+**Changes:**
+- `.github/workflows/release.yml`: builds five targets on a `v*` tag (macOS
+  arm64 and x64, Linux x64 and arm64, Windows x64) and attaches each archive
+  with its `.sha256`. Both macOS targets build on `macos-latest`.
+- `scripts/install.sh` and `scripts/install.ps1`: download the archive of the
+  latest release (or `DWG_MCP_TAG`), check its SHA-256, install to
+  `DWG_MCP_INSTALL_DIR`. They follow the layout of the `ccbox` installer.
+- Homebrew formula in the `aileron-tech/homebrew-dwg-mcp` tap, pointing at the
+  release archives.

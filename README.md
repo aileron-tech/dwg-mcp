@@ -47,23 +47,42 @@ Only `.dwg` files are accepted (up to 100 MB). DXF and DWF are refused with
 
 ## Run it
 
-### Native binary
+### Install the binary
+
+macOS and Linux (Apple Silicon, Intel, x64, arm64):
 
 ```sh
-# from source (Rust 1.88 or newer)
-cargo install --git https://github.com/aileron-tech/dwg-mcp
+curl -fsSL https://raw.githubusercontent.com/aileron-tech/dwg-mcp/main/scripts/install.sh | /bin/bash
+```
 
-dwg-mcp --version
+Homebrew (macOS and Linux):
+
+```sh
+brew tap aileron-tech/dwg-mcp
+brew install dwg-mcp
+```
+
+Windows (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/aileron-tech/dwg-mcp/main/scripts/install.ps1 | iex
+```
+
+The scripts download the archive for your platform from the latest
+[release](https://github.com/aileron-tech/dwg-mcp/releases), check its SHA-256
+and put `dwg-mcp` in `~/.local/bin` (Windows:
+`%LOCALAPPDATA%\Programs\dwg-mcp`, added to your PATH). Set
+`DWG_MCP_INSTALL_DIR` to change the folder and `DWG_MCP_TAG` to pin a version.
+
+From source (Rust 1.88 or newer):
+
+```sh
+cargo install --git https://github.com/aileron-tech/dwg-mcp
 ```
 
 With [dwg2png](https://github.com/aileron-tech/dwg2png) installed too,
 `dwg2png --mcp` starts the same server: it looks for `dwg-mcp` next to the
 `dwg2png` executable and then on `PATH`.
-
-Prebuilt archives for macOS (Apple Silicon and Intel), Linux x64 and Windows
-x64 are attached to each release by `.github/workflows/release.yml`. Homebrew
-and Scoop manifests will point at those archives; until the first release, use
-`cargo install`.
 
 ### Docker
 

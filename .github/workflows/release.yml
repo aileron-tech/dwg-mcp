@@ -1,7 +1,8 @@
 name: release
 
 # Build downloadable binaries and attach them to a GitHub Release when a
-# version tag (v*) is pushed. The package manager manifests point at these files.
+# version tag (v*) is pushed. scripts/install.sh, scripts/install.ps1 and the
+# Homebrew formula download these files.
 on:
   push:
     tags:
@@ -19,8 +20,9 @@ jobs:
       matrix:
         include:
           - { os: macos-latest, target: aarch64-apple-darwin }
-          - { os: macos-13, target: x86_64-apple-darwin }
+          - { os: macos-latest, target: x86_64-apple-darwin }
           - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
           - { os: windows-latest, target: x86_64-pc-windows-msvc }
     steps:
       - uses: actions/checkout@v4
@@ -37,17 +39,18 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          dir="target/${{ matrix.target }}/release"
-          tar -C "$dir" -czf "dwg-mcp-${{ matrix.target }}.tar.gz" dwg-mcp
-          shasum -a 256 "dwg-mcp-${{ matrix.target }}.tar.gz" > "dwg-mcp-${{ matrix.target }}.tar.gz.sha256"
+          archive="dwg-mcp-${{ matrix.target }}.tar.gz"
+          tar -C "target/${{ matrix.target }}/release" -czf "$archive" dwg-mcp
+          shasum -a 256 "$archive" > "$archive.sha256"
 
       - name: Package (windows)
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          dir="target/${{ matrix.target }}/release"
-          7z a "dwg-mcp-${{ matrix.target }}.zip" "./$dir/dwg-mcp.exe"
-          sha256sum "dwg-mcp-${{ matrix.target }}.zip" > "dwg-mcp-${{ matrix.target }}.zip.sha256"
+          archive="dwg-mcp-${{ matrix.target }}.zip"
+          out="$PWD/$archive"
+          (cd "target/${{ matrix.target }}/release" && 7z a "$out" dwg-mcp.exe)
+          sha256sum "$archive" > "$archive.sha256"
 
       - name: Attach to release
         uses: softprops/action-gh-release@v2
