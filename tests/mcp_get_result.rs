@@ -469,3 +469,22 @@ async fn drawing_without_text_reads_cleanly() {
     assert_eq!(image.images.len(), 1);
     h.stop().await;
 }
+
+/* REQ-MCP-120: the library exposes the folder of a job's files for hosts that publish them */
+#[test]
+fn service_exposes_the_result_folder() {
+    use dwg_mcp::contract::ParseFileInput;
+    use dwg_mcp::service::{Now, Service};
+    let cache = tempfile::tempdir().unwrap();
+    let files = tempfile::tempdir().unwrap();
+    let dwg = fixtures::write_dwg(&fixtures::plan_document(), files.path(), "plan.dwg");
+    let font = common::load_test_font();
+    let service = Service::new(cache.path().to_path_buf(), font).unwrap();
+    let now = Now { unix: 1_800_000_000, nanos: 1_800_000_000_000_000_000 };
+    let input = ParseFileInput { path: dwg.display().to_string(), size: Some(1024), tiles: Some(false) };
+    let out = service.parse_file(input, now).unwrap();
+    let dir = service.result_files_dir(&out.job.job_id).unwrap();
+    assert!(dir.join("img").join("f00-p00.png").is_file());
+    assert!(dir.join("labels").join("f00-p01.json").is_file());
+    assert!(service.result_files_dir("job_missing").is_err());
+}

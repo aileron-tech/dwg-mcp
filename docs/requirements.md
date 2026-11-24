@@ -132,6 +132,7 @@ block of the tool the requirement belongs to.
 | REQ-MCP-117 | a cache-hit job reads the same result as the job that parsed it | `tests/mcp_get_result.rs::cached_job_reads_the_same_result` |
 | REQ-MCP-118 | a drawing without text has an empty label listing and still has images | `tests/mcp_get_result.rs::drawing_without_text_reads_cleanly` |
 | REQ-MCP-119 | a page no larger than one tile has no tiles and tile_image points to page_image | `tests/mcp_get_result.rs::small_page_has_no_tiles` |
+| REQ-MCP-120 | the library exposes the folder of a job's files for hosts that publish them | `tests/mcp_get_result.rs::service_exposes_the_result_folder` |
 
 ## get_job, list_jobs, delete_job
 

@@ -32,6 +32,10 @@ fn font_path() -> String {
         .expect("no TrueType font found; set DWG2PNG_FONT")
 }
 
+pub fn load_test_font() -> ab_glyph::FontVec {
+    dwg2png::text::load_font(&font_path()).expect("load test font")
+}
+
 /// What one tool call returned, in the shapes the tests assert on.
 #[derive(Debug)]
 pub struct Reply {

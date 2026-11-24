@@ -469,6 +469,17 @@ impl Service {
         Ok(ResetCacheOutput { downloads_removed, results_removed, jobs_removed })
     }
 
+    /// The folder holding the files of a completed job: `img/`, `labels/`, `tiles/`
+    /// with the names the renderer writes (`f00-pNN...`). For hosts that publish the
+    /// files themselves, such as the Apify Actor.
+    pub fn result_files_dir(&self, job_id: &str) -> Result<PathBuf, ToolError> {
+        let job = self.require_job(job_id)?;
+        let key = job.result_key.ok_or_else(|| {
+            ToolError::ParseFailed(format!("job {} failed and has no result", job.job_id))
+        })?;
+        Ok(self.store.result_out_dir(&key))
+    }
+
     fn page_labels(&self, out: &Path, page: u32) -> Result<Vec<Label>, ToolError> {
         let disk: DiskLabels = read_disk(&out.join("labels").join(format!("{}.json", page_stem(page))))?;
         Ok(disk.labels.into_iter().map(|l| to_label(l, page)).collect())
