@@ -34,3 +34,10 @@ can be listed in MCP registries and installed apart from the renderer.
 **Not verified:** Windows and Linux native builds (the CI and release
 workflows have not run yet); scoring by Glama itself; `parse_url` against a
 real https host (the tests use a local http server).
+
+## 2026-11-24 - Agent instructions
+
+Added `AGENTS.md` (with `CLAUDE.md` as a symlink to it): how an agent uses the
+eight tools (default workflow, paging, tiles, cache and cost, what to do on
+each error code) and how to work on this repository. The limits it states were
+checked against the constants in `src/contract.rs` and `src/fetch.rs`.
