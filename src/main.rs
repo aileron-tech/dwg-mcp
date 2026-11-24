@@ -1,4 +1,4 @@
-//! dwg-mcp: MCP server for DWG ingestion, over stdio.
+//! dwg-mcp: MCP server for DWG, DXF and SVG ingestion, over stdio.
 //!
 //! Usage:
 //!   dwg-mcp              serve MCP on stdin/stdout (also: `dwg2png --mcp`)
@@ -11,7 +11,7 @@
 
 use std::path::{Path, PathBuf};
 
-const HELP: &str = "dwg-mcp: MCP server for DWG ingestion (stdio)
+const HELP: &str = "dwg-mcp: MCP server for DWG, DXF and SVG ingestion (stdio)
 
 Usage:
   dwg-mcp              serve MCP on stdin/stdout

@@ -25,7 +25,7 @@ use crate::domain::{
 use crate::fetch;
 use crate::store::{sha256_bytes, sha256_file, DownloadMeta, JobRecord, ResultMeta, Store};
 use dwg2png::render::RenderOpts;
-use dwg2png::{process_file, FileReport, OutDirs};
+use dwg2png::{process_file_with_svg, FileReport, OutDirs};
 
 /// The instant of a tool call, read once by the entrypoint.
 #[derive(Debug, Clone, Copy)]
@@ -94,7 +94,7 @@ fn page_stem(page: u32) -> String {
     format!("f00-p{page:02}")
 }
 
-/// A local drawing (DWG or DXF) that passed every check, with its content hash.
+/// A local drawing (DWG, DXF or SVG) that passed every check, with its content hash.
 struct LocalDwg {
     path: PathBuf,
     file_name: String,
@@ -121,7 +121,7 @@ fn check_local_dwg(raw: &str) -> Result<LocalDwg, ToolError> {
     let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("").to_string();
     if !has_drawing_extension(&file_name) {
         return Err(ToolError::UnsupportedFile(format!(
-            "{file_name:?} is not a .dwg or .dxf file; only DWG and DXF drawings are supported"
+            "{file_name:?} is not a .dwg, .dxf or .svg file; only DWG, DXF and SVG drawings are supported"
         )));
     }
     let len = fs::metadata(&path)
@@ -138,7 +138,7 @@ fn check_local_dwg(raw: &str) -> Result<LocalDwg, ToolError> {
         .map_err(|e| ToolError::Internal(format!("read {}: {e}", path.display())))?;
     if !is_drawing_content(&head[..read]) {
         return Err(ToolError::UnsupportedFile(format!(
-            "{file_name:?} does not start like a DWG or a DXF; it is not a drawing this server reads"
+            "{file_name:?} does not start like a DWG, DXF or SVG; it is not a drawing this server reads"
         )));
     }
     let sha256 = sha256_file(&path)?;
@@ -299,7 +299,7 @@ impl Service {
             max_side: SIZE_MAX,
             tile_px: opts.tiles.then_some(TILE_PX),
         };
-        let report = process_file(dwg, &dirs, &self.font, 0, render_opts);
+        let report = process_file_with_svg(dwg, &dirs, &self.font, 0, render_opts);
         if !report.ok {
             self.store.discard_staging(&staging)?;
             return Ok(Err(report.error.unwrap_or_else(|| "the drawing has no pages".into())));
@@ -402,7 +402,7 @@ impl Service {
                 let head = &got.bytes[..got.bytes.len().min(FORMAT_HEAD_BYTES)];
                 if !is_drawing_content(head) {
                     return Err(ToolError::UnsupportedFile(format!(
-                        "{} does not start like a DWG or a DXF; it is not a drawing this server reads",
+                        "{} does not start like a DWG, DXF or SVG; it is not a drawing this server reads",
                         url.raw
                     )));
                 }
@@ -493,7 +493,7 @@ impl Service {
         Ok(ResetCacheOutput { downloads_removed, results_removed, jobs_removed })
     }
 
-    /// The folder holding the files of a completed job: `img/`, `labels/`, `tiles/`
+    /// The folder holding the files of a completed job: `img/` (PNG and SVG), `labels/`, `tiles/`
     /// with the names the renderer writes (`f00-pNN...`). For hosts that publish the
     /// files themselves, such as the Apify Actor.
     pub fn result_files_dir(&self, job_id: &str) -> Result<PathBuf, ToolError> {
@@ -617,6 +617,31 @@ impl Service {
                 let (info, image) = Self::image_info(path, page, None, (p.width, p.height))?;
                 out.image = Some(info);
                 Ok((out, image))
+            }
+            ResultMode::PageSvg => {
+                let page = check_page(input.page, true)?.unwrap_or(0);
+                let p = &summary.pages[page as usize];
+                let path = out_dir.join("img").join(format!("{}.svg", page_stem(page)));
+                let bytes = fs::metadata(&path).map_err(|error| match error.kind() {
+                    std::io::ErrorKind::NotFound => ToolError::NotFound(
+                        "this job has no SVG export; parse the drawing again".into(),
+                    ),
+                    _ => ToolError::Internal(format!("read {}: {error}", path.display())),
+                })?.len();
+                out.image = Some(ImageInfo {
+                    page,
+                    row: None,
+                    col: None,
+                    x: 0,
+                    y: 0,
+                    width: p.width,
+                    height: p.height,
+                    mime_type: "image/svg+xml".into(),
+                    path: path.display().to_string(),
+                    bytes,
+                    inline: false,
+                });
+                Ok((out, None))
             }
             ResultMode::TileImage => {
                 let page = check_page(input.page, true)?.unwrap_or(0);

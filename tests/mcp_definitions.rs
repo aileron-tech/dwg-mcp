@@ -234,12 +234,12 @@ async fn required_arguments_are_minimal() {
     h.stop().await;
 }
 
-/* REQ-MCP-018: get_result publishes its five modes in the schema */
+/* REQ-MCP-018: get_result publishes the supported result modes in the schema */
 #[tokio::test]
-async fn get_result_schema_lists_the_five_modes() {
+async fn get_result_schema_lists_the_result_modes() {
     let h = Harness::start().await;
     let text = h.tool("get_result").await["inputSchema"].to_string();
-    for mode in ["summary", "index", "labels", "page_image", "tile_image"] {
+    for mode in ["summary", "index", "labels", "page_image", "page_svg", "tile_image"] {
         assert!(text.contains(&format!("\"{mode}\"")), "mode {mode} is not in the schema");
     }
     h.stop().await;

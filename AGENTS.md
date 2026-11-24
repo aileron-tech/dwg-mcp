@@ -1,7 +1,7 @@
 # dwg-mcp: instructions for agents
 
-dwg-mcp is an MCP server that turns AutoCAD DWG and DXF drawings into data you can
-read: page images, readable tiles, every text label with its pixel position,
+dwg-mcp is an MCP server that turns DWG, DXF and SVG drawings into data you can
+read: PNG previews, vector SVG pages, readable tiles, every text label with its pixel position,
 and a metadata index. This file has two parts: how to use the server's tools,
 and how to work on this repository.
 
@@ -34,6 +34,7 @@ container too.
 | To find or read text | `mode: "labels"`, with `query`, `layer` or `page` to narrow it |
 | Blocks, layouts, entity counts, title-block attributes | `mode: "index"` |
 | To look at a whole page | `mode: "page_image"`, `page` |
+| To retrieve a vector page | `mode: "page_svg"`, `page` |
 | To read small text in an image | `mode: "tile_image"`, `page`, `row`, `col` |
 
 Prefer `labels` over images for text: labels are the exact strings from the
@@ -41,7 +42,7 @@ drawing, not OCR. Use images when layout or geometry matters.
 
 ### Rules that save calls
 
-- Pages are numbered from 0. Page 0 is Model space; the rest are paper sheets.
+- Pages are numbered from 0. For CAD, page 0 is Model space and the rest are paper sheets. SVG has one page.
 - `labels` returns 100 labels per call (`limit` 1 to 500). When the answer has
   `next_cursor`, pass it as `cursor` to continue; when it is absent you have
   everything. `total` is the number of matches over all pages.
@@ -55,8 +56,7 @@ drawing, not OCR. Use images when layout or geometry matters.
   summary give the valid `row` and `col`; when they are 0, use `page_image`.
 - `size` (512 to 12000, default 3000) is the long edge of the page images.
   Raise it when labels are too small to read even in tiles.
-- An image comes back as image content when it is at most 5 MB, and always as
-  a file `path`.
+- PNG previews and tiles come back inline up to 5 MB and always include a file path. `page_svg` returns the SVG file path.
 
 ### Cache and cost
 
@@ -85,7 +85,7 @@ A failed call has `isError: true` and a text `code: message`.
 |------|---------|------------|
 | `invalid_argument` | A value is out of range or missing; the message names it | Fix the argument and call again |
 | `not_found` | No such file, or the job expired or was deleted | Check the path, or parse again |
-| `unsupported_file` | Not a `.dwg` or `.dxf`, not a drawing inside, or the URL is a web page | Tell the user; DWF and other formats are not supported |
+| `unsupported_file` | Not a `.dwg`, `.dxf` or `.svg`, not a drawing inside, or the URL is a web page | Tell the user; DWF and other formats are not supported |
 | `too_large` | Over 100 MB | Tell the user |
 | `download_failed` | HTTP error, unreachable host, or 30 s timeout | Check the URL; retry once |
 | `parse_failed` | The drawing is damaged, a DXF was cut short, or the DWG version is unsupported | Tell the user; it was not billed |

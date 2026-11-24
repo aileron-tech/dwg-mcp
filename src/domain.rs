@@ -70,15 +70,15 @@ pub fn resolve_options(size: Option<u32>, tiles: Option<bool>) -> Result<ParseOp
 }
 
 /// How many leading bytes of a file are enough to recognise its format.
-pub const FORMAT_HEAD_BYTES: usize = 256;
+pub const FORMAT_HEAD_BYTES: usize = 4096;
 
-/// True for a file name ending in .dwg or .dxf, in any letter case.
+/// True for a file name ending in .dwg, .dxf or .svg, in any letter case.
 pub fn has_drawing_extension(name: &str) -> bool {
     let lower = name.to_ascii_lowercase();
-    name.len() > 4 && (lower.ends_with(".dwg") || lower.ends_with(".dxf"))
+    name.len() > 4 && (lower.ends_with(".dwg") || lower.ends_with(".dxf") || lower.ends_with(".svg"))
 }
 
-/// True when the first bytes of a file are those of a DWG or a DXF drawing.
+/// True when the first bytes of a file are those of a DWG, DXF or SVG drawing.
 pub fn is_drawing_content(head: &[u8]) -> bool {
     dwg2png::detect_format(head).is_some()
 }
@@ -221,7 +221,7 @@ pub fn hex(bytes: &[u8]) -> String {
 
 /// Name of the result cache entry for one drawing content and one set of options.
 pub fn result_key(sha256_hex: &str, opts: ParseOptions) -> String {
-    format!("{sha256_hex}-s{}-t{}", opts.size, u8::from(opts.tiles))
+    format!("{sha256_hex}-s{}-t{}-svg", opts.size, u8::from(opts.tiles))
 }
 
 /// The content hash a result key was built from.
@@ -400,14 +400,15 @@ mod tests {
         assert!(decode_cursor(Some("abc")).is_err());
     }
 
-    /* REQ-MCP-U07: DWG and DXF are recognised by content and accepted by extension */
+    /* REQ-MCP-U07: DWG, DXF and SVG are recognised by content and accepted by extension */
     #[test]
     fn drawings_are_recognized() {
         assert!(is_drawing_content(b"AC1032\0\0"));
         assert!(is_drawing_content(b"  0\nSECTION\n  2\nHEADER\n"));
-        assert!(!is_drawing_content(b"<html>"));
+        assert!(is_drawing_content(b"<svg xmlns=\"http://www.w3.org/2000/svg\">"));
+        assert!(!is_drawing_content(b"<html><svg>"));
         assert!(!is_drawing_content(b"AC10"));
-        assert!(has_drawing_extension("a.dwg") && has_drawing_extension("PLAN.DXF"));
+        assert!(has_drawing_extension("a.dwg") && has_drawing_extension("PLAN.DXF") && has_drawing_extension("plan.SVG"));
         assert!(!has_drawing_extension("a.dwf") && !has_drawing_extension(".dwg") && !has_drawing_extension("dxf"));
     }
 

@@ -103,3 +103,5 @@ samples, two DXF from open source repositories) were driven through a real
 MCP session with the built binary: each parsed in 0.3 to 0.8 s, label search
 returned hits, tile images came back as PNG, and a second parse was a cache
 hit at 0.1.
+
+- Accept SVG through the local and URL parse tools. Cache vector exports with the existing raster artifacts and expose them through page_svg.

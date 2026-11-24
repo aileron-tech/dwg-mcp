@@ -31,7 +31,7 @@ pub const JOBS_LIMIT_MAX: u32 = 100;
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ParseFileInput {
-    /// Absolute path of a .dwg or .dxf file on the machine that runs this server. At
+    /// Absolute path of a .dwg, .dxf or .svg file on the machine that runs this server. At
     /// most 100 MB.
     pub path: String,
     /// Long edge of each page image in pixels, 512 to 12000. Default 3000. A different
@@ -47,8 +47,8 @@ pub struct ParseFileInput {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ParseUrlInput {
-    /// http or https URL of a .dwg or .dxf file. The file name comes from
-    /// Content-Disposition or the URL path and must end in .dwg or .dxf. At most 100 MB.
+    /// http or https URL of a .dwg, .dxf or .svg file. The file name comes from
+    /// Content-Disposition or the URL path and must end in .dwg, .dxf or .svg. At most 100 MB.
     pub url: String,
     /// Long edge of each page image in pixels, 512 to 12000. Default 3000. A different
     /// size is a different cache entry.
@@ -71,6 +71,8 @@ pub enum ResultMode {
     Labels,
     /// One whole page as a PNG.
     PageImage,
+    /// One whole page as a vector SVG file path.
+    PageSvg,
     /// One readable tile of a page as a PNG, with the labels inside it.
     TileImage,
 }
@@ -83,7 +85,7 @@ pub struct GetResultInput {
     /// Which part of the result to return. Default summary.
     #[serde(default)]
     pub mode: Option<ResultMode>,
-    /// Zero-based page index (0 is Model space). Required for page_image and tile_image;
+    /// Zero-based page index (0 is Model space). Required for page_image, page_svg and tile_image;
     /// optional filter for labels.
     #[serde(default)]
     pub page: Option<u32>,
@@ -128,7 +130,7 @@ pub struct ListJobsInput {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ResetFileCacheInput {
-    /// Absolute path of the .dwg or .dxf file whose cached results should be dropped. The file
+    /// Absolute path of the .dwg, .dxf or .svg file whose cached results should be dropped. The file
     /// is matched by content, so it must still exist.
     pub path: String,
 }
@@ -237,10 +239,9 @@ pub struct Label {
     pub text: String,
     /// Zero-based page index the label is on.
     pub page: u32,
-    /// Left end of the text baseline, in pixels of the page image (of the tile image
-    /// for mode tile_image).
+    /// Left edge of the label in page pixels, or tile pixels in tile_image.
     pub x: f64,
-    /// Baseline height, in pixels from the top of the same image.
+    /// CAD baseline or SVG text-box bottom, measured from the top in pixels.
     pub y: f64,
     /// Text width in pixels.
     pub w: f64,
@@ -305,12 +306,12 @@ pub struct ImageInfo {
     pub y: u32,
     pub width: u32,
     pub height: u32,
-    /// Always image/png.
+    /// image/png for raster previews or image/svg+xml for page_svg.
     pub mime_type: String,
-    /// Path of the PNG in the server's cache folder.
+    /// Path of the page or tile file in the server's cache folder.
     pub path: String,
     pub bytes: u64,
-    /// True when the PNG is also returned as image content; false above 5 MB.
+    /// True for PNG returned inline, up to 5 MB. SVG is returned by path.
     pub inline: bool,
 }
 
@@ -334,7 +335,7 @@ pub struct GetResultOutput {
     /// Mode labels: pass as cursor to get the next page; absent on the last page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
-    /// Present for modes page_image and tile_image.
+    /// Present for modes page_image, page_svg and tile_image.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<ImageInfo>,
 }

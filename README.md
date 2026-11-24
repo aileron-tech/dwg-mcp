@@ -1,8 +1,8 @@
 # dwg-mcp
 
-**MCP server for DWG and DXF ingestion.** dwg-mcp gives an AI agent eight tools
-to turn an AutoCAD drawing (DWG R13-R2018, or DXF) into data it can use: page images, readable
-tiles, every text label with its pixel position (read from the DWG, no OCR) and
+**MCP server for DWG, DXF and SVG ingestion.** dwg-mcp gives an AI agent eight tools
+to turn a DWG, DXF or SVG drawing into data it can use: PNG previews, vector SVG pages, readable
+tiles, every text label with its pixel position (read from the drawing, no OCR) and
 a metadata index. It runs locally over stdio, offline except for `parse_url`.
 
 The rendering is done by [dwg2png](https://github.com/aileron-tech/dwg2png);
@@ -12,9 +12,9 @@ this repository is the server around it.
 
 | Tool | What it does |
 |------|--------------|
-| `parse_file` | Parse a DWG or DXF from a local path. Returns a job and a summary. |
-| `parse_url` | Download a DWG or DXF from an http or https URL and parse it. |
-| `get_result` | Read one part of a parsed drawing: `summary`, `labels`, `index`, `page_image` or `tile_image`. |
+| `parse_file` | Parse a DWG, DXF or SVG from a local path. Returns a job and a summary. |
+| `parse_url` | Download a DWG, DXF or SVG from an http or https URL and parse it. |
+| `get_result` | Read one part of a parsed drawing: `summary`, `labels`, `index`, `page_image`, `page_svg` or `tile_image`. |
 | `get_job` | Status, cost and expiry of one job. |
 | `list_jobs` | Jobs in the cache, newest first, with the total cost. |
 | `delete_job` | Delete one job and, when no other job reads it, its result. |
@@ -42,10 +42,16 @@ A failed call returns `isError: true` with a text of the form `code: message`.
 Codes: `invalid_argument`, `not_found`, `unsupported_file`, `too_large`,
 `download_failed`, `parse_failed`, `internal`.
 
-`.dwg` and `.dxf` files are accepted (up to 100 MB); the format is read from
+`.dwg`, `.dxf`, and `.svg` files are accepted (up to 100 MB); the format is read from
 the content of the file. DWF and other files are refused with
-`unsupported_file`. A damaged DWG and a DXF that was cut short fail with
+`unsupported_file`. Damaged drawings and truncated DXF or SVG fail with
 `parse_failed` instead of returning an empty drawing.
+
+To retrieve a vector page for any of the three input formats, call
+`get_result` with `mode: "page_svg"` and a zero-based `page`. Read the
+SVG file from `image.path`. Continue using `page_image` and `tile_image`
+for PNG previews and tiles. Previously cached jobs can still serve their PNGs.
+Parse the drawing again to generate SVG pages for those jobs.
 
 ## Run it
 
@@ -166,7 +172,7 @@ and passed down.
 cargo test --release
 ```
 
-147 end-to-end tests spawn the built `dwg-mcp` binary and drive it with the
+152 end-to-end tests spawn the built `dwg-mcp` binary and drive it with the
 official Rust MCP client (`rmcp`) over stdio; a small local HTTP server stands
 in for remote files. Drawings are synthetic, written at test time; none is
 committed. One test covers the library accessor used by the Apify Actor, and

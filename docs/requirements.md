@@ -37,7 +37,7 @@ block of the tool the requirement belongs to.
 | REQ-MCP-015 | only parse_url reaches outside the machine | `tests/mcp_definitions.rs::only_parse_url_is_open_world` |
 | REQ-MCP-016 | parse tools and delete_job are not idempotent; reset tools are | `tests/mcp_definitions.rs::idempotency_hints_match_behaviour` |
 | REQ-MCP-017 | each tool requires only its identifying argument | `tests/mcp_definitions.rs::required_arguments_are_minimal` |
-| REQ-MCP-018 | get_result publishes its five modes in the schema | `tests/mcp_definitions.rs::get_result_schema_lists_the_five_modes` |
+| REQ-MCP-018 | get_result publishes the supported result modes in the schema | `tests/mcp_definitions.rs::get_result_schema_lists_the_result_modes` |
 | REQ-MCP-019 | the parse tools share one output schema | `tests/mcp_definitions.rs::parse_tools_share_one_output_shape` |
 | REQ-MCP-020 | calling a tool that does not exist is a protocol error | `tests/mcp_definitions.rs::unknown_tool_is_a_protocol_error` |
 | REQ-MCP-021 | an argument that is not in the schema is rejected | `tests/mcp_definitions.rs::unknown_argument_is_rejected` |
@@ -198,6 +198,10 @@ block of the tool the requirement belongs to.
 | REQ-MCP-205 | a DXF that breaks off is a failed parse, not an empty drawing | `tests/mcp_dxf.rs::truncated_dxf_fails_to_parse` |
 | REQ-MCP-206 | the format follows the content: a DXF named .dwg parses | `tests/mcp_dxf.rs::misnamed_dxf_parses` |
 | REQ-MCP-207 | the tool definitions say that DXF is accepted | `tests/mcp_dxf.rs::definitions_mention_dxf` |
+| REQ-MCP-208 | parse_file returns a single SVG page and its native labels | `tests/mcp_svg.rs::parse_file_reads_svg` |
+| REQ-MCP-209 | parse_url reads and caches SVG drawings | `tests/mcp_svg.rs::parse_url_reads_svg` |
+| REQ-MCP-210 | an SVG root with truncated XML fails without charging | `tests/mcp_svg.rs::truncated_svg_is_parse_failed` |
+| REQ-MCP-211 | page_svg exposes a vector export and leaves page_image available for all inputs | `tests/mcp_svg.rs::vector_output_is_available_for_all_formats` |
 
 ## Pure rules (unit tests)
 
@@ -209,7 +213,7 @@ block of the tool the requirement belongs to.
 | REQ-MCP-U04 | the file name of a download comes from the header, then the URL path | `src/domain.rs::download_name_prefers_content_disposition` |
 | REQ-MCP-U05 | only http and https URLs with a host are accepted | `src/domain.rs::url_scheme_and_host_are_checked` |
 | REQ-MCP-U06 | paging returns a cursor until the last page | `src/domain.rs::paginate_walks_all_items` |
-| REQ-MCP-U07 | DWG and DXF are recognised by content and accepted by extension | `src/domain.rs::drawings_are_recognized` |
+| REQ-MCP-U07 | DWG, DXF and SVG are recognised by content and accepted by extension | `src/domain.rs::drawings_are_recognized` |
 | REQ-MCP-U08 | a result key separates content, size and tiles | `src/domain.rs::result_key_depends_on_options` |
 | REQ-MCP-U09 | a failsafe-recovered empty document is reported as unreadable | `src/domain.rs::failsafe_empty_document_is_unreadable` |
 | REQ-MCP-U10 | a text DXF is complete only when it ends with EOF | `src/domain.rs::text_dxf_completeness` |

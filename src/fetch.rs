@@ -16,7 +16,7 @@ pub struct Download {
 }
 
 /// Fetch the file behind `url`. Redirects are followed; the file name comes from
-/// Content-Disposition, then the final URL path, and must end in .dwg or .dxf.
+/// Content-Disposition, then the final URL path, and must end in .dwg, .dxf or .svg.
 pub fn download(url: &HttpUrl) -> Result<Download, ToolError> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(DOWNLOAD_TIMEOUT))
@@ -55,7 +55,7 @@ pub fn download(url: &HttpUrl) -> Result<Download, ToolError> {
     let file_name = download_file_name(header("content-disposition").as_deref(), &final_url);
     if !has_drawing_extension(&file_name) {
         return Err(ToolError::UnsupportedFile(format!(
-            "{} is named {file_name:?}; only .dwg and .dxf files are supported",
+            "{} is named {file_name:?}; only .dwg, .dxf and .svg files are supported",
             url.raw
         )));
     }
