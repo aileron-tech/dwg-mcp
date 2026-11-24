@@ -12,29 +12,32 @@
 - [ ] Complete the OpenAI domain verification and reviewer test flow. Track
   the separate Claude Marketplace submission.
 
-## Billing with Stripe
+## Prepaid drawing packs
 
-Match the published Apify Actor's rates in the direct hosted service.
-[Current Apify pricing](https://apify.com/aileron-tech/dwg-apify/pricing)
+Build the checkout, account dashboard and API key management in
+`dwg-mcp-web`. The direct hosted service uses the published Apify Actor's unit
+rates. At $1 per 1,000 prepaid usage units, one fresh parse uses 7 units and
+one eligible cache hit uses 3. [Current Apify pricing](https://apify.com/aileron-tech/dwg-apify/pricing)
 
-| Billable event | USD per drawing | USD per 1,000 |
-| --- | ---: | ---: |
-| Fresh successful parse | $0.007 | $7.00 |
-| Eligible same-account cache hit | $0.003 | $3.00 |
-| Failed parse, job check, or result read | $0.00 | $0.00 |
+| Usage | Units | USD per drawing | USD per 1,000 drawings |
+| --- | ---: | ---: | ---: |
+| Fresh successful parse | 7 | $0.007 | $7.00 |
+| Eligible same-account cache hit | 3 | $0.003 | $3.00 |
+| Failed parse, job check, or result read | 0 | $0.00 | $0.00 |
 
-- [ ] Use CADLens as the reference for self-service signup, access keys and
-  visible account usage. Decide the free allowance and billable cache window
-  before launch. [CADLens usage and quotas](https://cadlens.co/docs#usage)
-- [ ] Add Stripe Checkout and the customer portal on Aileron's site for plan
-  management. Enforce account entitlements and show consumed and remaining
-  allowance. [Stripe Billing](https://docs.stripe.com/billing/subscriptions/usage-based)
-- [ ] Count completed parses with a durable usage record keyed to the drawing
-  job. Keep failed parses, job checks and result reads free. Test checkout,
-  cancellation, webhook retries, concurrent quota use and duplicate events
-  in Stripe test mode before enabling live charges. Aggregate metered
-  usage per billing period and verify how fractional-cent prices round
-  on invoices. [Stripe per-unit pricing](https://docs.stripe.com/api/prices/create)
+- [ ] Let customers buy a usage pack, see their balance and payment history,
+  and create or revoke named API keys. Decide pack sizes, the free allowance,
+  the paid usage expiry policy and cache eligibility before launch.
+- [ ] Evaluate Paddle as merchant of record. Confirm it accepts these
+  account-bound drawing packs before enabling live sales. Grant units once
+  per completed payment through a verified webhook. [Paddle one-time payments](https://developer.paddle.com/get-started/how-paddle-works/digital-products/) and [Paddle acceptable use policy](https://www.paddle.com/help/start/intro-to-paddle/what-am-i-not-allowed-to-sell-on-paddle)
+- [ ] Reserve units before processing and settle the actual charge once per
+  completed job. Release the reservation on failure. Verify checkout,
+  concurrent jobs, low balances, refunds and duplicate webhooks in a sandbox.
+  Track optional automatic top-ups separately.
+- [ ] If the Apify Actor uses the hosted MCP, provision a dedicated, revocable
+  service key with an explicit high quota. Attribute its usage separately.
+  Apify charges that channel's customers without debiting their direct packs.
 - [ ] Let ChatGPT users sign in to an existing account and access its
   entitlements. Keep purchase and upgrade prompts out of the ChatGPT plugin.
   [OpenAI plugin guidelines](https://developers.openai.com/plugins/plugin-guidelines)
