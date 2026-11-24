@@ -62,6 +62,9 @@ brew tap aileron-tech/dwg-mcp
 brew install dwg-mcp
 ```
 
+If Homebrew says the tap is untrusted, run `brew trust aileron-tech/dwg-mcp`
+once and install again.
+
 Windows (PowerShell):
 
 ```powershell

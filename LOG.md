@@ -67,3 +67,18 @@ runner's glibc (2.43). Installed with the one-liner in `debian:bookworm-slim`,
 **Change:** The two Linux targets are now `x86_64-unknown-linux-musl` and
 `aarch64-unknown-linux-musl`: static binaries with no glibc dependency.
 `scripts/install.sh` downloads those. No change to the server itself.
+
+**Verification of 0.1.1 (installers run against the published release):**
+- Release workflow: all five targets built and attached with checksums.
+- `scripts/install.sh` one-liner: installs and runs on macOS x64; in
+  `debian:bookworm-slim`, `ubuntu:22.04` and `ubuntu:24.04` containers the
+  installed binary also parsed a drawing over MCP stdio.
+- `scripts/install.ps1` run under PowerShell 7 on macOS: downloads the Windows
+  archive, verifies the checksum and extracts `dwg-mcp.exe`.
+- Homebrew: `brew tap aileron-tech/dwg-mcp && brew install dwg-mcp` installs
+  0.1.1 on macOS x64; `brew test` and `brew audit --strict` pass. Homebrew 7
+  required `brew trust` for the tap first.
+
+**Not verified:** running `dwg-mcp.exe` on Windows and the PATH update in
+`install.ps1` (no Windows machine); the macOS arm64 and Linux arm64 binaries
+(built by CI, not run).
